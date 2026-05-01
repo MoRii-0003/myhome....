@@ -1,0 +1,3505 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover"
+    />
+    <title>𝓸𝓾𝓻 𝓭𝓻𝓮𝓪𝓶 𝓱𝓸𝓶𝓮</title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://image.uglycat.cc/fx0a8g.jpg"
+    />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <!-- 
+        ========================================================================
+        更新内容
+        ========================================================================
+        2026-04
+        1. 房间弹窗已简化，仅保留名称、宽度和高度编辑。
+        2. 房间重叠时可自动贴边修正。
+        3. 门编辑弹窗已简化，仅支持方向和长度修改。
+        4. 窗户支持单独生成模式，可在墙体任意点击位置添加。
+        5. 墙体弹窗已恢复正常显示，并可稳定查看该墙上的窗户列表。
+        6. 家具编辑弹窗已简化，仅支持宽度和高度修改。
+
+        ========================================================================
+        功能清单
+        ========================================================================
+        自定义户型编辑工具使用说明
+
+          一、工具简介
+         本工具用于绘制简单户型，并支持房间、墙体、门、窗户和家具的编辑。
+         适合用于个人房型设计、空间布局记录和场景可视化整理。
+
+        二、主要功能
+         1. 房间编辑
+         可添加房间、拖动房间位置，并修改房间名称、宽度和高度。
+         房间发生重叠时，系统会自动尝试吸附和调整位置。
+
+         2. 墙体生成与编辑
+         墙体由房间边界自动生成。点击生成墙后，系统会根据当前房间布局重新构建墙体。
+         点击墙体后可修改墙厚，并查看当前墙上的窗户列表。
+
+         3. 门的编辑
+         点击生成门按钮后进入开门模式，再点击墙体即可在点击位置生成门。点
+         击已有门可修改开启方向和长度，也可删除该门。
+
+         4. 窗户的编辑
+         点击生成窗户按钮后进入开窗模式，再点击墙体即可在对应位置生成窗户。
+         点击已有窗户可修改窗户长度，也可删除窗户。点击墙体时，弹窗中也会显示该墙上的窗户列表。
+
+         5. 家具编辑
+         支持放置内置家具和自定义家具。点击房间内部可放置当前选中的家具。
+         点击家具可修改宽度和高度。双击自定义家具可删除。
+
+         6. 数据保存
+         当前房型会自动保存到本地。支持导入 JSON 房型文件，也支持导出 JSON 数据和 PNG 图片。
+
+         三、基本操作
+         1. 先添加房间并调整布局。
+         2. 点击生成墙，建立墙体。
+         3. 根据需要点击生成门或生成窗户，分别在墙体上放置门窗。
+         4. 最后在房间中摆放家具，完成户型编辑。
+
+         四、注意事项
+         1. 生成门和生成窗户属于单独模式，使用完成后可再次点击对应按钮退出。
+         2. 删除墙体后，如需恢复，可重新点击生成墙。
+         3. 修改房间尺寸或位置后，建议重新检查门窗位置是否符合当前布局。
+         4. 本工具更适合个人使用和轻量编辑，不建议当作精确施工图工具使用。
+        ========================================================================
+    -->
+    <style>
+      /* ==================== 全局重置与字体 ==================== */
+
+      @font-face {
+        font-family: "MainFont";
+        src: url("https://cdn.jsdelivr.net/gh/chichi-zhang/ttf-repo@main/娅の小熊包1.80.ttf")
+          format("truetype");
+      }
+      * {
+        font-family: "MainFont", monospace;
+        color: #fff;
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 30px 20px;
+        background: url("https://i.postimg.cc/bwKZVJCV/0aaec06258137566d29c16ad531cbb6d.png")
+          center/cover fixed;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        min-height: 100vh;
+        position: relative;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(200, 210, 220, 0.2);
+        backdrop-filter: blur(8px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      #roomFloorStyleSelect option {
+        color: #54361a;
+      }
+
+      /* ==================== 主布局 ==================== */
+      .main-column {
+        display: flex;
+        flex-direction: column;
+        height: 90vh;
+        gap: 12px;
+      }
+
+      .canvas-container {
+        width: 100%;
+        max-width: 2000px;
+        margin: 0 auto;
+        background: rgba(220, 230, 240, 0.1);
+        backdrop-filter: blur(12px);
+        border-radius: 32px; /* 圆角加大 */
+        padding: 20px 20px 10px 20px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        /* 移除 justify-content 和 gap，改用 margin 控制间距 */
+        position: relative;
+      }
+      canvas {
+        display: block;
+        margin-bottom: 20px; /* 画布与家具条的间距，可按需调整 */
+        border-radius: 12px;
+        width: 100%;
+        height: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        touch-action: none;
+        cursor: crosshair;
+      }
+
+      .canvas-footer {
+        margin-top: auto; /* 关键！将底部内容推到底 */
+        text-align: center;
+        width: 100%;
+        padding-top: 5px;
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      .canvas-footer p {
+        margin: 2px 0;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      }
+
+      .control-bar {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        background: rgba(220, 230, 240, 0.1);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 12px;
+      }
+
+      .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: 10px;
+      }
+      .actions-grid button {
+        height: 25px;
+        font-size: 12px;
+        padding: 6px;
+        margin: 0 !important;
+        width: 100%;
+      }
+
+      /* ==================== 通用按钮与控件 ==================== */
+      button,
+      .file-import-label {
+        background: rgba(230, 235, 240, 0.2);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 8px 14px;
+        margin: 6px 10px 0 0;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s;
+        display: inline-block;
+        text-align: center;
+        line-height: 1.2;
+        vertical-align: middle;
+        box-sizing: border-box;
+        width: auto;
+      }
+      button:active,
+      .file-import-label:active {
+        transform: scale(0.96);
+        background: rgba(180, 190, 210, 0.8);
+      }
+      #fileImportInput {
+        display: none;
+      }
+
+      .add-room-btn {
+        background: rgba(230, 235, 240, 0.25);
+        border: 1px dashed rgba(255, 255, 255, 0.5);
+        padding: 6px 12px;
+        font-size: 14px;
+        border-radius: 30px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .add-room-btn:hover {
+        background: rgba(230, 235, 240, 0.4);
+      }
+
+      /* ==================== 家具快捷栏 ==================== */
+      .furniture-panel-quick {
+        margin-bottom: 10px; /* 家具条与文案的固定间距 10px */
+        padding: 6px 14px;
+        background: rgba(220, 230, 240, 0.1);
+        backdrop-filter: blur(12px);
+        border-radius: 20px; /* 更圆 */
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        z-index: 2;
+        width: 100%;
+      }
+      .furniture-scroll {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 3px 0;
+        flex: 1 1 auto;
+        min-width: 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+      }
+      .furniture-scroll::-webkit-scrollbar {
+        height: 3px;
+      }
+      .furniture-scroll::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+      }
+      .furniture-item,
+      #addCustomFurnitureBtn {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 25px;
+        padding: 5px 14px;
+        white-space: nowrap;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.2s;
+        font-size: 13px;
+        user-select: none;
+        font-weight: bold;
+        box-shadow: none;
+        margin: 0;
+        line-height: 1.2;
+        display: inline-block;
+        text-align: center;
+        vertical-align: middle;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
+      .furniture-item.active {
+        background: rgba(180, 200, 220, 0.6);
+        border-color: #fff;
+        box-shadow: 0 0 8px rgba(255, 255, 240, 0.5);
+      }
+      #addCustomFurnitureBtn {
+        margin-left: 8px;
+        flex-shrink: 0;
+      }
+
+      /* ==================== 模态框样式 ==================== */
+      .modal-panel {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 20px;
+        padding: 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        min-width: 260px;
+        color: #fff;
+        overflow: hidden;
+      }
+      .modal-header {
+        padding: 12px 18px;
+        background: rgba(0, 0, 0, 0.15);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+        font-size: 16px;
+        cursor: move;
+        user-select: none;
+      }
+      .modal-body {
+        padding: 18px 22px;
+      }
+      .modal-panel input {
+        background: rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
+        padding: 6px 10px;
+        color: #fff;
+        font-size: 14px;
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
+      .modal-panel button {
+        background: rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 6px 14px;
+        margin: 0 4px;
+        border-radius: 30px;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: none;
+      }
+      .modal-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .modal-row span {
+        width: 65px;
+        font-size: 14px;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      #changelogModal .modal-body {
+        text-align: left;
+        padding-bottom: 50px;
+        position: relative;
+        min-height: 150px;
+      }
+      #changelogCloseBtn {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        padding: 6px 20px;
+        border-radius: 30px;
+        cursor: pointer;
+      }
+
+      /* ==================== 轻提示 ==================== */
+      .toast-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 30, 40, 0.8);
+        backdrop-filter: blur(8px);
+        color: #fff;
+        padding: 8px 20px;
+        border-radius: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 2000;
+        font-size: 14px;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-column">
+      <!-- ==================== 画布区域 ==================== -->
+      <div class="canvas-container">
+        <canvas id="floorCanvas"></canvas>
+
+        <div class="furniture-panel-quick">
+          <div class="furniture-scroll" id="furnitureScrollQuick"></div>
+          <button id="addCustomFurnitureBtn">• 自定义</button>
+        </div>
+
+        <div class="canvas-footer">
+          <p>“₊⁺𝓸𝓾𝓻 𝓭𝓻𝓮𝓪𝓶 𝓱𝓸𝓶𝓮₊⁺ ❆”</p>
+          <p>“*₊⁺扣扣制作 ·测试版₊⁺ ❆”</p>
+        </div>
+      </div>
+
+      <!-- ==================== 控制栏 ==================== -->
+      <div class="control-bar">
+        <div class="actions-grid">
+          <button id="addRoomBar" class="add-room-btn-in-grid">
+            • 添加房间
+          </button>
+          <button id="undoBtn">• 撤回</button>
+          <button id="generateWallsBtn">• 生成墙</button>
+          <button id="windowPlacementBtn">• 生成窗户</button>
+          <button id="doorPlacementBtn">• 生成门</button>
+          <button id="importBtn">• 导入房型</button>
+          <input
+            type="file"
+            id="fileImportInput"
+            accept=".json,application/json"
+          />
+          <button id="resetBtn">• 重置房型</button>
+          <button id="exportBtn">• 导出房型</button>
+        </div>
+        <!-- 移除原来的独立添加房间 div -->
+      </div>
+    </div>
+
+    <!-- ==================== 模态框 ==================== -->
+    <div id="changelogModal" class="modal-panel">
+      <div class="modal-header">功能简介</div>
+      <div class="modal-body">
+        <p>• 点击房间可修改名称、宽度和高度，拖动房间可调整位置</p>
+        <p>• 点击生成墙可根据当前房间布局自动更新墙体</p>
+        <p>• 点击墙体可修改墙厚，并查看这段墙上的窗户</p>
+        <p>
+          • 点击生成门后再点击墙体，可在对应位置添加门，再次点击按钮可退出该模式
+        </p>
+        <p>
+          •
+          点击生成窗户后再点击墙体，可在对应位置添加窗户，再次点击按钮可退出该模式
+        </p>
+        <p>• 点击已有门或窗户可打开编辑窗口进行修改或删除</p>
+        <p>• 点击房间内部可放置当前选中的家具，点击家具可修改尺寸</p>
+        <p>• 双击自定义家具可删除，所有内容会自动保存在本地</p>
+        <p>• 支持导入和导出 JSON，也支持导出 PNG 图片</p>
+        <button id="changelogCloseBtn">关 闭</button>
+      </div>
+    </div>
+
+    <div id="exportModal" class="modal-panel">
+      <div class="modal-header">选择导出格式</div>
+      <div class="modal-body">
+        <div class="modal-actions" style="justify-content: space-around">
+          <button id="exportPngBtn">PNG 图片</button>
+          <button id="exportJsonBtn">JSON 数据</button>
+        </div>
+        <div style="text-align: center; margin-top: 12px">
+          <button id="exportCancelBtn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="furnitureModal" class="modal-panel">
+      <div class="modal-header">编辑家具</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>宽度</span
+          ><input type="number" id="modalWidth" step="1" min="5" />
+        </div>
+        <div class="modal-row">
+          <span>高度</span
+          ><input type="number" id="modalHeight" step="1" min="5" />
+        </div>
+        <div class="modal-actions">
+          <button id="modalSave" style="background: #6a8a6a">保存</button>
+          <button id="modalDelete" style="background: #a05a5a">删除</button>
+          <button id="modalClose">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="createFurnitureModal" class="modal-panel">
+      <div class="modal-header">新建家具</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>名称</span
+          ><input
+            type="text"
+            id="newFurnitureName"
+            placeholder="如： 绿植"
+            value=" 新家具"
+          />
+        </div>
+        <div class="modal-row">
+          <span>默认宽</span
+          ><input
+            type="number"
+            id="newFurnitureWidth"
+            step="1"
+            min="5"
+            value="30"
+          />
+        </div>
+        <div class="modal-row">
+          <span>默认高</span
+          ><input
+            type="number"
+            id="newFurnitureHeight"
+            step="1"
+            min="5"
+            value="20"
+          />
+        </div>
+        <div class="modal-actions">
+          <button id="createFurnitureSave" style="background: #6a8a6a">
+            创建
+          </button>
+          <button id="createFurnitureCancel">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="wallModal" class="modal-panel">
+      <div class="modal-header">编辑墙体</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>厚度</span
+          ><input
+            type="number"
+            id="wallThicknessInput"
+            step="0.5"
+            min="1"
+            value="4"
+          />
+        </div>
+        <div style="margin: 10px 0">
+          <strong>窗户列表</strong>
+        </div>
+        <div
+          id="wallWindowsList"
+          style="max-height: 150px; overflow-y: auto; margin-bottom: 10px"
+        ></div>
+        <div class="modal-actions">
+          <button id="wallModalSave" style="background: #6a8a6a">保存</button>
+          <button id="wallModalDelete" style="background: #a05a5a">
+            删除墙体
+          </button>
+          <button id="wallModalClose">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="doorModal" class="modal-panel">
+      <div class="modal-header">编辑门</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>方向</span>
+          <select
+            id="doorDirectionSelect"
+            style="
+              background: rgba(255, 255, 255, 0.2);
+              color: #fff;
+              border-radius: 8px;
+              padding: 4px;
+            "
+          >
+            <option value="right">右</option>
+            <option value="left">左</option>
+            <option value="up">上</option>
+            <option value="down">下</option>
+          </select>
+        </div>
+        <div class="modal-row">
+          <span>长度</span>
+          <input type="number" id="doorRadiusInput" step="1" min="5" max="40" />
+        </div>
+        <div class="modal-actions">
+          <button id="doorModalSave" style="background: #6a8a6a">保存</button>
+          <button id="doorModalDelete" style="background: #a05a5a">
+            删除门
+          </button>
+          <button id="doorModalClose">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="windowModal" class="modal-panel">
+      <div class="modal-header">编辑窗户</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>长度</span>
+          <input type="number" id="windowLengthInput" step="1" min="4" />
+        </div>
+        <div class="modal-actions">
+          <button id="windowModalSave" style="background: #6a8a6a">保存</button>
+          <button id="windowModalDelete" style="background: #a05a5a">
+            删除窗户
+          </button>
+          <button id="windowModalClose">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="roomModal" class="modal-panel">
+      <div class="modal-header">编辑房间</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span>名称</span><input type="text" id="roomNameInput" />
+        </div>
+        <div class="modal-row">
+          <span>铺地</span>
+          <select
+            id="roomFloorStyleSelect"
+            style="
+              background: rgba(255, 255, 255, 0.2);
+              color: #54361a;
+              border-radius: 8px;
+              padding: 4px;
+              width: 100%;
+            "
+          ></select>
+        </div>
+        <div class="modal-row">
+          <span>宽度</span
+          ><input type="number" id="roomWInput" step="1" min="10" />
+        </div>
+        <div class="modal-row">
+          <span>高度</span
+          ><input type="number" id="roomHInput" step="1" min="10" />
+        </div>
+        <div class="modal-actions">
+          <button id="roomModalSave" style="background: #6a8a6a">保存</button>
+          <button id="roomModalDelete" style="background: #a05a5a">
+            删除房间
+          </button>
+          <button id="roomModalClose">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // ############################################################################
+        // 第一部分：常量、配置与全局状态
+        // ############################################################################
+        const COLORS = {
+          roomFill: "#d8c8b5",
+          roomStroke: "rgba(112, 25, 29, 0.2)",
+          roomText: "#54361a",
+          panelBg: "rgba(255,255,255,0.15)",
+          doorFill: "#c38182",
+          doorStroke: "#c38182",
+          wallFill: "#c38182",
+          wallStroke: "#c38182",
+          windowFill: "#fcded6",
+          windowStroke: "#fcded6",
+          furnitureFill: "rgba(251, 215, 238, 0.3)",
+          furnitureStroke: "#c1a09d",
+        };
+        const LOGIC_W = 450,
+          LOGIC_H = 300;
+        const DEFAULT_WALL_THICKNESS = 4;
+
+        const FLOOR_STYLES = {
+          woodSoft: {
+            label: "木地板 1",
+            url: "https://img.heliar.top/file/1776347872900_a4f7eddcc559939efae898783a58d4e6.jpg",
+            fallback: "#d8c8b5",
+            scale: 0.1,
+          },
+          tileLight: {
+            label: "瓷砖 1",
+            url: "https://img.heliar.top/file/1776348543586_111.png",
+            fallback: "#d9d4cf",
+            scale: 0.1,
+          },
+          mosaicWarm: {
+            label: "瓷砖 2",
+            url: "https://img.heliar.top/file/1776348650886_abc88c347b32e250012f3f895d7f3230.png",
+            fallback: "#d7c8c1",
+            scale: 0.1,
+          },
+        };
+
+        const floorTextureImages = {};
+        const floorTexturePatterns = {};
+
+        const makeScaledPattern = (img, scale = 1) => {
+          const safeScale = Math.max(0.1, scale);
+
+          const offCanvas = document.createElement("canvas");
+          offCanvas.width = Math.max(1, Math.round(img.width * safeScale));
+          offCanvas.height = Math.max(1, Math.round(img.height * safeScale));
+
+          const offCtx = offCanvas.getContext("2d");
+          offCtx.imageSmoothingEnabled = true;
+          offCtx.drawImage(img, 0, 0, offCanvas.width, offCanvas.height);
+
+          return els.ctx.createPattern(offCanvas, "repeat");
+        };
+
+        const ensureFloorTextureLoaded = (styleKey) => {
+          const style = FLOOR_STYLES[styleKey];
+          if (!style) return;
+
+          if (floorTextureImages[styleKey]) return;
+
+          const img = new Image();
+          img.onload = () => {
+            floorTexturePatterns[styleKey] = makeScaledPattern(
+              img,
+              style.scale || 1,
+            );
+            redraw();
+          };
+          img.onerror = () => {
+            floorTexturePatterns[styleKey] = null;
+            redraw();
+          };
+          img.src = style.url;
+          floorTextureImages[styleKey] = img;
+        };
+
+        const getRoomFloorFill = (room) => {
+          const styleKey = room.floorStyle || "woodSoft";
+          const style = FLOOR_STYLES[styleKey];
+
+          if (!style) return COLORS.roomFill;
+
+          if (!(styleKey in floorTextureImages)) {
+            ensureFloorTextureLoaded(styleKey);
+          }
+
+          return floorTexturePatterns[styleKey] || style.fallback;
+        };
+
+        const renderRoomFloorOptions = () => {
+          const select = document.getElementById("roomFloorStyleSelect");
+          if (!select) return;
+
+          select.innerHTML = "";
+
+          Object.entries(FLOOR_STYLES).forEach(([key, item]) => {
+            const option = document.createElement("option");
+            option.value = key;
+            option.textContent = item.label;
+            select.appendChild(option);
+          });
+        };
+
+        const DEFAULT_ROOMS = [
+          {
+            id: "room_1",
+            name: "卧室",
+            x: 10,
+            y: 10,
+            w: 80,
+            h: 60,
+            floorStyle: "woodSoft",
+          },
+          {
+            id: "room_2",
+            name: "客厅",
+            x: 90,
+            y: 10,
+            w: 100,
+            h: 80,
+            floorStyle: "woodSoft",
+          },
+          {
+            id: "room_3",
+            name: "厨房",
+            x: 10,
+            y: 70,
+            w: 80,
+            h: 60,
+            floorStyle: "woodSoft",
+          },
+          {
+            id: "room_4",
+            name: "入户空间",
+            x: 190,
+            y: 10,
+            w: 40,
+            h: 80,
+            floorStyle: "woodSoft",
+          },
+        ];
+        const BUILTIN_FURNITURE = [
+          { type: "bed", label: "• 床", defaultW: 40, defaultH: 25 },
+          { type: "sofa", label: "• 沙发", defaultW: 35, defaultH: 18 },
+          { type: "dining", label: "• 餐桌", defaultW: 25, defaultH: 25 },
+          { type: "desk", label: "• 书桌", defaultW: 30, defaultH: 15 },
+          { type: "cabinet", label: "• 柜子", defaultW: 20, defaultH: 30 },
+        ];
+
+        // 核心数据
+        let rooms = JSON.parse(JSON.stringify(DEFAULT_ROOMS));
+        let doors = [],
+          walls = [],
+          windows = [],
+          furniture = [];
+        let customFurnitureItems = [];
+
+        let hiddenWallKeys = [];
+        let openPassages = [];
+
+        const getWallPersistKey = (w) => {
+          return buildWallKey(w.x1, w.y1, w.x2, w.y2);
+        };
+
+        const getPassageKey = (roomA, roomB) => {
+          return [roomA, roomB].filter(Boolean).sort().join("|");
+        };
+
+        // UI 状态
+        let selectedFurnitureType = null;
+        let currentEditingFurniture = null;
+        let doorPlacementMode = false;
+        let windowPlacementMode = false;
+        let globalDoorRadius = 16;
+
+        // 拖拽状态
+        let dragState = {
+          active: false,
+          type: null,
+          target: null,
+          startX: 0,
+          startY: 0,
+          origX: 0,
+          origY: 0,
+        };
+        let dragMoved = false;
+        let skipNextEdit = { type: null, id: null };
+
+        // 历史记录
+        const MAX_HISTORY = 50;
+        let historyStack = [],
+          historyIndex = -1;
+        let isUndoRedo = false;
+
+        // 当前编辑对象
+        let currentWall = null,
+          currentDoor = null,
+          currentWindow = null,
+          currentRoom = null;
+
+        // DOM 元素
+        const els = {
+          canvas: document.getElementById("floorCanvas"),
+          ctx: document.getElementById("floorCanvas").getContext("2d"),
+          furnitureScroll: document.getElementById("furnitureScrollQuick"),
+          editModal: document.getElementById("furnitureModal"),
+          createModal: document.getElementById("createFurnitureModal"),
+          exportModal: document.getElementById("exportModal"),
+          undoBtn: document.getElementById("undoBtn"),
+          wallModal: document.getElementById("wallModal"),
+          doorModal: document.getElementById("doorModal"),
+          windowModal: document.getElementById("windowModal"),
+          roomModal: document.getElementById("roomModal"),
+          changelogModal: document.getElementById("changelogModal"),
+        };
+
+        // ############################################################################
+        // 第二部分：通用工具函数
+        // ############################################################################
+        const generateId = () =>
+          "id_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+
+        const deepClone = (data) => JSON.parse(JSON.stringify(data));
+        const roundRect = (ctx, x, y, w, h, r) => {
+          const radius = Math.min(r, w / 2, h / 2);
+          ctx.beginPath();
+          ctx.moveTo(x + radius, y);
+          ctx.lineTo(x + w - radius, y);
+          ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+          ctx.lineTo(x + w, y + h - radius);
+          ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+          ctx.lineTo(x + radius, y + h);
+          ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+          ctx.lineTo(x, y + radius);
+          ctx.quadraticCurveTo(x, y, x + radius, y);
+          ctx.closePath();
+        };
+
+        const buildWallKey = (x1, y1, x2, y2) => {
+          const p1 = `${x1},${y1}`;
+          const p2 = `${x2},${y2}`;
+          return [p1, p2].sort().join("|");
+        };
+        const WALL_GROUP_EPS = 6;
+        const WALL_GROUP_GAP_EPS = 8;
+
+        const isVerticalWall = (w) => Math.abs(w.x1 - w.x2) <= WALL_GROUP_EPS;
+        const isHorizontalWall = (w) => Math.abs(w.y1 - w.y2) <= WALL_GROUP_EPS;
+
+        const getWallAxisSafe = (w) => {
+          return isVerticalWall(w) ? "vertical" : "horizontal";
+        };
+
+        const getWallLineCoord = (w) => {
+          return getWallAxisSafe(w) === "vertical"
+            ? (w.x1 + w.x2) / 2
+            : (w.y1 + w.y2) / 2;
+        };
+
+        const getWallSpan = (w) => {
+          if (getWallAxisSafe(w) === "vertical") {
+            return [Math.min(w.y1, w.y2), Math.max(w.y1, w.y2)];
+          }
+          return [Math.min(w.x1, w.x2), Math.max(w.x1, w.x2)];
+        };
+
+        const spansCloseEnough = (a1, a2, b1, b2, eps = WALL_GROUP_GAP_EPS) => {
+          return Math.min(a2, b2) >= Math.max(a1, b1) - eps;
+        };
+
+        const getSpanOverlapLength = (a1, a2, b1, b2) => {
+          return Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
+        };
+
+        const getSpanLength = (s1, s2) => Math.max(0, s2 - s1);
+
+        const areWallsInSameGroup = (a, b) => {
+          if (!a || !b) return false;
+
+          const axisA = getWallAxisSafe(a);
+          const axisB = getWallAxisSafe(b);
+          if (axisA !== axisB) return false;
+
+          const lineA = getWallLineCoord(a);
+          const lineB = getWallLineCoord(b);
+          if (Math.abs(lineA - lineB) > WALL_GROUP_EPS) return false;
+
+          const [a1, a2] = getWallSpan(a);
+          const [b1, b2] = getWallSpan(b);
+
+          if (!spansCloseEnough(a1, a2, b1, b2)) return false;
+
+          const overlapLen = getSpanOverlapLength(a1, a2, b1, b2);
+          const minLen = Math.min(getSpanLength(a1, a2), getSpanLength(b1, b2));
+
+          if (overlapLen > 0) return true;
+
+          return (
+            Math.abs(a2 - b1) <= WALL_GROUP_GAP_EPS ||
+            Math.abs(b2 - a1) <= WALL_GROUP_GAP_EPS ||
+            minLen <= WALL_GROUP_GAP_EPS * 2
+          );
+        };
+
+        const getWallGroup = (targetWall) => {
+          if (!targetWall) return [];
+
+          const group = [];
+          const visited = new Set();
+          const queue = [targetWall];
+
+          while (queue.length > 0) {
+            const current = queue.shift();
+            if (!current || visited.has(current.id)) continue;
+
+            visited.add(current.id);
+            group.push(current);
+
+            walls.forEach((w) => {
+              if (!visited.has(w.id) && areWallsInSameGroup(current, w)) {
+                queue.push(w);
+              }
+            });
+          }
+
+          group.sort((a, b) => {
+            const [a1, a2] = getWallSpan(a);
+            const [b1, b2] = getWallSpan(b);
+            return a1 - b1 || a2 - b2;
+          });
+
+          return group;
+        };
+
+        const getMergedWalls = () => {
+          if (!Array.isArray(walls) || walls.length === 0) return [];
+
+          const mergedWalls = [];
+          const visited = new Set();
+
+          walls.forEach((wall) => {
+            if (!wall || visited.has(wall.id)) return;
+
+            const group = getWallGroup(wall);
+            if (group.length === 0) return;
+
+            group.forEach((g) => visited.add(g.id));
+
+            const axis = getWallAxisSafe(group[0]);
+            const roomIds = [...new Set(group.flatMap((g) => g.roomIds || []))];
+            const thickness = Math.max(
+              ...group.map((g) => g.thickness || DEFAULT_WALL_THICKNESS),
+            );
+
+            if (axis === "vertical") {
+              const x =
+                group.reduce((sum, g) => sum + getWallLineCoord(g), 0) /
+                group.length;
+              const y1 = Math.min(...group.map((g) => Math.min(g.y1, g.y2)));
+              const y2 = Math.max(...group.map((g) => Math.max(g.y1, g.y2)));
+
+              mergedWalls.push({
+                id: `merged_${group[0].id}`,
+                x1: x,
+                y1,
+                x2: x,
+                y2,
+                roomIds,
+                thickness,
+                rawWallIds: group.map((g) => g.id),
+                merged: true,
+              });
+            } else {
+              const y =
+                group.reduce((sum, g) => sum + getWallLineCoord(g), 0) /
+                group.length;
+              const x1 = Math.min(...group.map((g) => Math.min(g.x1, g.x2)));
+              const x2 = Math.max(...group.map((g) => Math.max(g.x1, g.x2)));
+
+              mergedWalls.push({
+                id: `merged_${group[0].id}`,
+                x1,
+                y1: y,
+                x2,
+                y2: y,
+                roomIds,
+                thickness,
+                rawWallIds: group.map((g) => g.id),
+                merged: true,
+              });
+            }
+          });
+
+          return mergedWalls;
+        };
+
+        const getMergedWallForDoor = (door) => {
+          const mergedWalls = getMergedWalls();
+          if (mergedWalls.length === 0) return null;
+
+          let candidates = mergedWalls.filter(
+            (w) => getWallAxis(w) === door.wallAxis,
+          );
+
+          if (door.roomA && door.roomB) {
+            candidates = candidates.filter((w) => {
+              const ids = w.roomIds || [];
+              return ids.includes(door.roomA) && ids.includes(door.roomB);
+            });
+          } else if (door.roomA) {
+            candidates = candidates.filter((w) => {
+              const ids = w.roomIds || [];
+              return ids.includes(door.roomA);
+            });
+          }
+
+          if (candidates.length === 0) return null;
+
+          candidates.sort((a, b) => {
+            const lineDiffA =
+              typeof door.wallLineValue === "number"
+                ? Math.abs(getWallLineValue(a) - door.wallLineValue)
+                : 0;
+            const lineDiffB =
+              typeof door.wallLineValue === "number"
+                ? Math.abs(getWallLineValue(b) - door.wallLineValue)
+                : 0;
+
+            if (lineDiffA !== lineDiffB) return lineDiffA - lineDiffB;
+
+            return getWallLength(b) - getWallLength(a);
+          });
+
+          return candidates[0];
+        };
+
+        const getPointRatioOnWall = (wall, point) => {
+          const len = Math.max(getWallLength(wall), 1);
+          const dx = wall.x2 - wall.x1;
+          const dy = wall.y2 - wall.y1;
+
+          const rawRatio =
+            ((point.x - wall.x1) * dx + (point.y - wall.y1) * dy) / (len * len);
+
+          return Math.max(0, Math.min(1, rawRatio));
+        };
+
+        const getRoomById = (id) => rooms.find((r) => r.id === id);
+
+        const cleanupDataRefs = () => {
+          const roomIdSet = new Set(rooms.map((r) => r.id));
+
+          furniture = furniture.filter((f) => roomIdSet.has(f.roomId));
+
+          doors = doors.filter((d) => {
+            const roomAOk = d.roomA == null || roomIdSet.has(d.roomA);
+            const roomBOk = d.roomB == null || roomIdSet.has(d.roomB);
+            return roomAOk && roomBOk;
+          });
+        };
+
+        const syncLayout = () => {
+          cleanupDataRefs();
+          rebuildWallsFromRooms();
+          redraw();
+        };
+
+        const getFurnitureConfig = (type) => {
+          const found =
+            BUILTIN_FURNITURE.find((f) => f.type === type) ||
+            customFurnitureItems.find((f) => f.type === type);
+
+          return found
+            ? { label: found.label, w: found.defaultW, h: found.defaultH }
+            : { label: type, w: 30, h: 20 };
+        };
+
+        const showToast = (msg, duration = 1500) => {
+          let toast = document.querySelector(".toast-message");
+          if (!toast) {
+            toast = document.createElement("div");
+            toast.className = "toast-message";
+            document.body.appendChild(toast);
+          }
+          toast.textContent = msg;
+          toast.style.opacity = "1";
+          clearTimeout(window.toastTimeout);
+          window.toastTimeout = setTimeout(
+            () => (toast.style.opacity = "0"),
+            duration,
+          );
+        };
+
+        // 模态框拖拽
+        const makeDraggable = (modal) => {
+          const header = modal.querySelector(".modal-header");
+          if (!header) return;
+          let offsetX,
+            offsetY,
+            isDragging = false;
+          const onStart = (clientX, clientY) => {
+            isDragging = true;
+            const rect = modal.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+            modal.style.cursor = "move";
+          };
+          const onMove = (clientX, clientY) => {
+            if (!isDragging) return;
+            let left = clientX - offsetX,
+              top = clientY - offsetY;
+            left = Math.max(
+              0,
+              Math.min(left, window.innerWidth - modal.offsetWidth),
+            );
+            top = Math.max(
+              0,
+              Math.min(top, window.innerHeight - modal.offsetHeight),
+            );
+            modal.style.left = left + "px";
+            modal.style.top = top + "px";
+          };
+          header.addEventListener("mousedown", (e) => {
+            if (
+              e.target.tagName === "INPUT" ||
+              e.target.tagName === "SELECT" ||
+              e.target.tagName === "BUTTON"
+            )
+              return;
+            onStart(e.clientX, e.clientY);
+            e.preventDefault();
+          });
+          window.addEventListener("mousemove", (e) => {
+            if (isDragging) onMove(e.clientX, e.clientY);
+          });
+          window.addEventListener("mouseup", () => {
+            isDragging = false;
+            modal.style.cursor = "";
+          });
+          header.addEventListener("touchstart", (e) => {
+            if (
+              e.target.tagName === "INPUT" ||
+              e.target.tagName === "SELECT" ||
+              e.target.tagName === "BUTTON"
+            )
+              return;
+            const t = e.touches[0];
+            onStart(t.clientX, t.clientY);
+            e.preventDefault();
+          });
+          window.addEventListener("touchmove", (e) => {
+            if (!isDragging) return;
+            const t = e.touches[0];
+            onMove(t.clientX, t.clientY);
+            e.preventDefault();
+          });
+          window.addEventListener("touchend", () => {
+            isDragging = false;
+            modal.style.cursor = "";
+          });
+        };
+        document.querySelectorAll(".modal-panel").forEach(makeDraggable);
+
+        const showModal = (modal, x, y) => {
+          if (!modal) return;
+          modal.style.display = "block";
+          if (x && y) {
+            let left = x + 10,
+              top = y + 10;
+            if (left + modal.offsetWidth > innerWidth)
+              left = innerWidth - modal.offsetWidth - 20;
+            if (top + modal.offsetHeight > innerHeight)
+              top = innerHeight - modal.offsetHeight - 20;
+            modal.style.left = Math.max(0, left) + "px";
+            modal.style.top = Math.max(0, top) + "px";
+          } else {
+            modal.style.left = (innerWidth - modal.offsetWidth) / 2 + "px";
+            modal.style.top = (innerHeight - modal.offsetHeight) / 2 + "px";
+          }
+        };
+
+        // ############################################################################
+        // 第三部分：历史记录与持久化
+        // ############################################################################
+        const captureSnapshot = () => ({
+          rooms: JSON.parse(JSON.stringify(rooms)),
+          doors: JSON.parse(JSON.stringify(doors)),
+          walls: JSON.parse(JSON.stringify(walls)),
+          windows: JSON.parse(JSON.stringify(windows)),
+          furniture: JSON.parse(JSON.stringify(furniture)),
+          customFurnitureItems: JSON.parse(
+            JSON.stringify(customFurnitureItems),
+          ),
+          hiddenWallKeys: JSON.parse(JSON.stringify(hiddenWallKeys)),
+          openPassages: JSON.parse(JSON.stringify(openPassages)),
+          globalDoorRadius,
+        });
+
+        const restoreSnapshot = (snap) => {
+          rooms = JSON.parse(JSON.stringify(snap.rooms));
+          doors = JSON.parse(JSON.stringify(snap.doors));
+          walls = JSON.parse(JSON.stringify(snap.walls));
+          windows = JSON.parse(JSON.stringify(snap.windows));
+          furniture = JSON.parse(JSON.stringify(snap.furniture));
+          customFurnitureItems = JSON.parse(
+            JSON.stringify(snap.customFurnitureItems),
+          );
+          hiddenWallKeys = JSON.parse(
+            JSON.stringify(snap.hiddenWallKeys || []),
+          );
+          openPassages = JSON.parse(JSON.stringify(snap.openPassages || []));
+          globalDoorRadius = snap.globalDoorRadius;
+          renderFurnitureLibrary();
+          redraw();
+        };
+
+        const pushHistory = () => {
+          if (isUndoRedo) return;
+          historyStack = historyStack.slice(0, historyIndex + 1);
+          historyStack.push(captureSnapshot());
+          if (historyStack.length > MAX_HISTORY) historyStack.shift();
+          historyIndex = historyStack.length - 1;
+        };
+
+        const undo = () => {
+          if (historyIndex > 0) {
+            isUndoRedo = true;
+            historyIndex--;
+            restoreSnapshot(historyStack[historyIndex]);
+            isUndoRedo = false;
+          } else {
+            showToast("没有更早的历史");
+          }
+        };
+
+        const saveToLocal = () => {
+          localStorage.setItem(
+            "myFloorplanData",
+            JSON.stringify({
+              rooms,
+              doors,
+              walls,
+              windows,
+              furniture,
+              customFurnitureItems,
+              hiddenWallKeys,
+              openPassages,
+              globalDoorRadius,
+            }),
+          );
+        };
+
+        const saveWithHistory = () => {
+          saveToLocal();
+          pushHistory();
+        };
+
+        // ############################################################################
+        // 第四部分：家具库渲染
+        // ############################################################################
+        const renderFurnitureLibrary = () => {
+          els.furnitureScroll.innerHTML = "";
+          [...customFurnitureItems, ...BUILTIN_FURNITURE].forEach((item) => {
+            const div = document.createElement("div");
+            div.className = "furniture-item";
+            div.dataset.type = item.type;
+            div.textContent = item.label;
+            div.onclick = () => {
+              doorPlacementMode = false;
+              windowPlacementMode = false;
+              document
+                .querySelectorAll(".furniture-item")
+                .forEach((e) => e.classList.remove("active"));
+              div.classList.add("active");
+              selectedFurnitureType = item.type;
+            };
+            div.ondblclick = () => {
+              if (BUILTIN_FURNITURE.some((f) => f.type === item.type)) {
+                showToast("内置不可删");
+                return;
+              }
+              customFurnitureItems = customFurnitureItems.filter(
+                (f) => f.type !== item.type,
+              );
+              if (selectedFurnitureType === item.type)
+                selectedFurnitureType = null;
+              renderFurnitureLibrary();
+              saveWithHistory();
+            };
+            els.furnitureScroll.appendChild(div);
+          });
+        };
+
+        // ############################################################################
+        // 第五部分：墙体生成逻辑 (独立函数)
+        // ############################################################################
+        const rebuildWallsFromRooms = () => {
+          const oldWalls = Array.isArray(walls) ? deepClone(walls) : [];
+          const oldWindows = Array.isArray(windows) ? deepClone(windows) : [];
+
+          const EPS = 0.1;
+
+          const roundCoord = (n) => Number(n.toFixed(3));
+
+          const getAxisLineSpanFromWall = (w) => {
+            const axis = getWallAxisSafe(w);
+            if (axis === "vertical") {
+              return {
+                axis,
+                line: roundCoord((w.x1 + w.x2) / 2),
+                start: roundCoord(Math.min(w.y1, w.y2)),
+                end: roundCoord(Math.max(w.y1, w.y2)),
+              };
+            }
+            return {
+              axis,
+              line: roundCoord((w.y1 + w.y2) / 2),
+              start: roundCoord(Math.min(w.x1, w.x2)),
+              end: roundCoord(Math.max(w.x1, w.x2)),
+            };
+          };
+
+          const getLineGroupKey = (axis, line) => `${axis}|${roundCoord(line)}`;
+
+          const uniqueSortedPoints = (points) => {
+            const sorted = [...points].sort((a, b) => a - b);
+            const result = [];
+            sorted.forEach((p) => {
+              if (
+                result.length === 0 ||
+                Math.abs(p - result[result.length - 1]) > EPS
+              ) {
+                result.push(p);
+              }
+            });
+            return result;
+          };
+
+          const getOverlapLen = (a1, a2, b1, b2) =>
+            Math.max(0, Math.min(a2, b2) - Math.max(a1, b1));
+
+          const roomIdsKey = (ids = []) =>
+            [...new Set(ids)].map(String).sort().join("|");
+
+          const oldWallsByExactKey = new Map();
+          oldWalls.forEach((w) => {
+            if (
+              !w ||
+              typeof w.x1 !== "number" ||
+              typeof w.y1 !== "number" ||
+              typeof w.x2 !== "number" ||
+              typeof w.y2 !== "number"
+            ) {
+              return;
+            }
+            oldWallsByExactKey.set(buildWallKey(w.x1, w.y1, w.x2, w.y2), w);
+          });
+
+          const findBestOldWallForSegment = (axis, line, start, end) => {
+            let best = null;
+            let bestScore = -1;
+
+            oldWalls.forEach((w) => {
+              const info = getAxisLineSpanFromWall(w);
+              if (info.axis !== axis) return;
+              if (Math.abs(info.line - line) > WALL_GROUP_EPS) return;
+
+              const overlap = getOverlapLen(info.start, info.end, start, end);
+              if (overlap <= EPS) return;
+
+              if (overlap > bestScore) {
+                bestScore = overlap;
+                best = w;
+              }
+            });
+
+            return best;
+          };
+
+          const rawEdgeGroups = new Map();
+
+          const pushRawEdge = (axis, line, start, end, roomId) => {
+            start = roundCoord(Math.min(start, end));
+            end = roundCoord(Math.max(start, end));
+            line = roundCoord(line);
+
+            if (end - start <= EPS) return;
+
+            const key = getLineGroupKey(axis, line);
+            if (!rawEdgeGroups.has(key)) {
+              rawEdgeGroups.set(key, {
+                axis,
+                line,
+                edges: [],
+                points: [],
+              });
+            }
+
+            const group = rawEdgeGroups.get(key);
+            group.edges.push({ start, end, roomId });
+            group.points.push(start, end);
+          };
+
+          rooms.forEach((r) => {
+            if (!r) return;
+
+            pushRawEdge("horizontal", r.y, r.x, r.x + r.w, r.id);
+            pushRawEdge("horizontal", r.y + r.h, r.x, r.x + r.w, r.id);
+            pushRawEdge("vertical", r.x, r.y, r.y + r.h, r.id);
+            pushRawEdge("vertical", r.x + r.w, r.y, r.y + r.h, r.id);
+          });
+
+          const nextWalls = [];
+
+          rawEdgeGroups.forEach((group) => {
+            const splitPoints = uniqueSortedPoints(group.points);
+            if (splitPoints.length < 2) return;
+
+            for (let i = 0; i < splitPoints.length - 1; i++) {
+              const start = splitPoints[i];
+              const end = splitPoints[i + 1];
+              if (end - start <= EPS) continue;
+
+              const mid = (start + end) / 2;
+
+              const coveringEdges = group.edges.filter(
+                (edge) => mid >= edge.start - EPS && mid <= edge.end + EPS,
+              );
+
+              if (coveringEdges.length === 0) continue;
+
+              const roomIds = [...new Set(coveringEdges.map((e) => e.roomId))];
+
+              let x1, y1, x2, y2;
+              if (group.axis === "vertical") {
+                x1 = group.line;
+                y1 = start;
+                x2 = group.line;
+                y2 = end;
+              } else {
+                x1 = start;
+                y1 = group.line;
+                x2 = end;
+                y2 = group.line;
+              }
+
+              const exactKey = buildWallKey(x1, y1, x2, y2);
+              const exactOldWall = oldWallsByExactKey.get(exactKey);
+              const similarOldWall =
+                exactOldWall ||
+                findBestOldWallForSegment(group.axis, group.line, start, end);
+
+              nextWalls.push({
+                id: exactOldWall?.id || generateId(),
+                x1,
+                y1,
+                x2,
+                y2,
+                roomIds,
+                thickness:
+                  typeof similarOldWall?.thickness === "number"
+                    ? similarOldWall.thickness
+                    : DEFAULT_WALL_THICKNESS,
+              });
+            }
+          });
+
+          const findBestNewWallForWindow = (win) => {
+            const oldWall = oldWalls.find((w) => w.id === win.wallId) || null;
+
+            const expectedAxis =
+              win.wallAxis || (oldWall ? getWallAxis(oldWall) : null);
+            if (!expectedAxis) return null;
+
+            const oldRoomKey = oldWall ? roomIdsKey(oldWall.roomIds) : "";
+            const expectedLine =
+              typeof win.wallLineValue === "number"
+                ? win.wallLineValue
+                : oldWall
+                  ? getWallLineValue(oldWall)
+                  : null;
+
+            let expectedPoint = null;
+            if (oldWall) {
+              let ratio;
+              if (typeof win.wallRatio === "number") {
+                ratio = win.wallRatio;
+              } else if (typeof win.wallOffset === "number") {
+                ratio = win.wallOffset / Math.max(getWallLength(oldWall), 1);
+              } else {
+                ratio = 0.5;
+              }
+              expectedPoint = getPointOnWallByRatio(oldWall, ratio);
+            }
+
+            let candidates = nextWalls.filter(
+              (w) => getWallAxis(w) === expectedAxis,
+            );
+            if (candidates.length === 0) return null;
+
+            candidates.sort((a, b) => {
+              const roomKeyA = roomIdsKey(a.roomIds);
+              const roomKeyB = roomIdsKey(b.roomIds);
+
+              const roomMatchA = oldRoomKey && roomKeyA === oldRoomKey ? 0 : 1;
+              const roomMatchB = oldRoomKey && roomKeyB === oldRoomKey ? 0 : 1;
+              if (roomMatchA !== roomMatchB) return roomMatchA - roomMatchB;
+
+              const lineDiffA =
+                expectedLine !== null
+                  ? Math.abs(getWallLineValue(a) - expectedLine)
+                  : 0;
+              const lineDiffB =
+                expectedLine !== null
+                  ? Math.abs(getWallLineValue(b) - expectedLine)
+                  : 0;
+              if (lineDiffA !== lineDiffB) return lineDiffA - lineDiffB;
+
+              if (expectedPoint) {
+                const ratioA = getPointRatioOnWall(a, expectedPoint);
+                const pointA = getPointOnWallByRatio(a, ratioA);
+
+                const ratioB = getPointRatioOnWall(b, expectedPoint);
+                const pointB = getPointOnWallByRatio(b, ratioB);
+
+                const distA = Math.hypot(
+                  pointA.x - expectedPoint.x,
+                  pointA.y - expectedPoint.y,
+                );
+                const distB = Math.hypot(
+                  pointB.x - expectedPoint.x,
+                  pointB.y - expectedPoint.y,
+                );
+
+                if (distA !== distB) return distA - distB;
+              }
+
+              return getWallLength(a) - getWallLength(b);
+            });
+
+            return candidates[0] || null;
+          };
+
+          const nextWindows = [];
+
+          oldWindows.forEach((win) => {
+            const bestWall = findBestNewWallForWindow(win);
+            if (!bestWall) return;
+
+            let ratio;
+            if (typeof win.wallRatio === "number") {
+              ratio = win.wallRatio;
+            } else if (typeof win.wallOffset === "number") {
+              ratio = win.wallOffset / Math.max(getWallLength(bestWall), 1);
+            } else {
+              ratio = 0.5;
+            }
+
+            ratio = Math.max(0, Math.min(1, ratio));
+
+            nextWindows.push({
+              ...win,
+              wallId: bestWall.id,
+              wallAxis: getWallAxis(bestWall),
+              wallLineValue: getWallLineValue(bestWall),
+              wallRatio: ratio,
+              wallOffset: getWallLength(bestWall) * ratio,
+            });
+          });
+
+          const hiddenSet = new Set(hiddenWallKeys);
+
+          const visibleWalls = nextWalls.filter((w) => {
+            return !hiddenSet.has(getWallPersistKey(w));
+          });
+
+          const visibleWallIds = new Set(visibleWalls.map((w) => w.id));
+
+          walls = visibleWalls;
+          windows = nextWindows.filter((win) => visibleWallIds.has(win.wallId));
+        };
+
+        const generateWalls = () => {
+          try {
+            hiddenWallKeys = [];
+            openPassages = [];
+            rebuildWallsFromRooms();
+            redraw();
+            saveWithHistory();
+            showToast("墙体已全部重建");
+          } catch (err) {
+            console.error("生成墙失败：", err);
+            showToast("生成墙失败，请打开控制台查看报错");
+          }
+        };
+
+        // ############################################################################
+        // 第六部分：核心绘图逻辑 (redraw 及各绘制函数)
+        // ############################################################################
+        const drawRooms = (ctx, sx, fs, cs) => {
+          rooms.forEach((r) => {
+            const fill = getRoomFloorFill(r);
+
+            ctx.save();
+
+            // 房间底图
+            ctx.fillStyle = fill;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+
+            // 暖色罩染，让真实贴图变柔一点
+            ctx.fillStyle = "rgba(248, 236, 218, 0.34)";
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+
+            // 很轻的纸感高光
+            ctx.fillStyle = "rgba(255,255,255,0.10)";
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+
+            // 柔和描边
+            ctx.strokeStyle = "rgba(120, 90, 70, 0.18)";
+            ctx.lineWidth = 1.2 / sx;
+            ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+            ctx.fillStyle = COLORS.roomText;
+            ctx.font = `normal ${fs}px 'MainFont', monospace`;
+
+            let maxW = r.w - 10,
+              lines = [],
+              cur = "";
+
+            r.name.split("").forEach((ch) => {
+              let t = cur + ch;
+              if (ctx.measureText(t).width > maxW && cur) {
+                lines.push(cur);
+                cur = ch;
+              } else {
+                cur = t;
+              }
+            });
+
+            if (cur) lines.push(cur);
+
+            let lh = fs + 2,
+              y = r.y + (r.h - lines.length * lh) / 2 + fs - 2;
+
+            // 房间名加一点浅浅底光
+            ctx.shadowColor = "rgba(255,255,255,0.35)";
+            ctx.shadowBlur = 3;
+
+            lines.forEach((l) => {
+              ctx.fillText(l, r.x + (r.w - ctx.measureText(l).width) / 2, y);
+              y += lh;
+            });
+
+            ctx.shadowBlur = 0;
+            ctx.font = `normal ${cs}px 'MainFont', monospace`;
+            ctx.fillStyle = "rgba(84, 54, 26, 0.72)";
+            ctx.fillText(`(${r.x},${r.y})`, r.x + 5, r.y + r.h - 5);
+
+            ctx.restore();
+          });
+        };
+
+        const drawWallPiece = (ctx, sx, x1, y1, x2, y2, thickness) => {
+          const t = thickness || DEFAULT_WALL_THICKNESS;
+          const angle = Math.atan2(y2 - y1, x2 - x1);
+          const px = (Math.sin(angle) * t) / 2;
+          const py = (-Math.cos(angle) * t) / 2;
+
+          ctx.save();
+
+          ctx.shadowColor = "rgba(90, 70, 60, 0.12)";
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 1.2;
+          ctx.shadowOffsetY = 1.2;
+
+          ctx.beginPath();
+          ctx.moveTo(x1 + px, y1 + py);
+          ctx.lineTo(x2 + px, y2 + py);
+          ctx.lineTo(x2 - px, y2 - py);
+          ctx.lineTo(x1 - px, y1 - py);
+          ctx.closePath();
+
+          // 奶油白墙体
+          ctx.fillStyle = "#f8f2ea";
+          ctx.fill();
+
+          // 更柔和的线
+          ctx.strokeStyle = "rgba(145, 120, 105, 0.16)";
+          ctx.lineWidth = 0.8 / sx;
+          ctx.stroke();
+
+          ctx.restore();
+        };
+
+        const getDoorOpeningsForWall = (wall) => {
+          const linkedDoors = doors.filter((door) => {
+            const mergedWall = getMergedWallForDoor(door);
+            return mergedWall && mergedWall.id === wall.id;
+          });
+
+          if (linkedDoors.length === 0) return [];
+
+          const axis = getWallAxis(wall);
+          const wallLen = getWallLength(wall);
+
+          let wallStartCoord;
+          if (axis === "vertical") {
+            wallStartCoord = Math.min(wall.y1, wall.y2);
+          } else {
+            wallStartCoord = Math.min(wall.x1, wall.x2);
+          }
+
+          const openings = linkedDoors
+            .map((door) => {
+              const pos = getDoorPosition(door);
+              const doorWidth = Math.max(8, door.radius ?? globalDoorRadius);
+
+              let center;
+              if (axis === "vertical") {
+                center = pos.y - wallStartCoord;
+              } else {
+                center = pos.x - wallStartCoord;
+              }
+
+              let start = center - doorWidth / 2;
+              let end = center + doorWidth / 2;
+
+              start = Math.max(0, start);
+              end = Math.min(wallLen, end);
+
+              if (end - start <= 0.5) return null;
+
+              return { start, end };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.start - b.start);
+
+          if (openings.length === 0) return [];
+
+          const merged = [openings[0]];
+          for (let i = 1; i < openings.length; i++) {
+            const last = merged[merged.length - 1];
+            const cur = openings[i];
+
+            if (cur.start <= last.end) {
+              last.end = Math.max(last.end, cur.end);
+            } else {
+              merged.push(cur);
+            }
+          }
+
+          return merged;
+        };
+
+        const drawWalls = (ctx, sx) => {
+          const mergedWalls = getMergedWalls();
+
+          mergedWalls.forEach((w) => {
+            const thickness = w.thickness || DEFAULT_WALL_THICKNESS;
+            const axis = getWallAxis(w);
+            const openings = getDoorOpeningsForWall(w);
+
+            if (openings.length === 0) {
+              drawWallPiece(ctx, sx, w.x1, w.y1, w.x2, w.y2, thickness);
+              return;
+            }
+
+            if (axis === "vertical") {
+              const x = w.x1;
+              const startY = Math.min(w.y1, w.y2);
+              const endY = Math.max(w.y1, w.y2);
+
+              let cursor = startY;
+
+              openings.forEach((opening) => {
+                const segStart = cursor;
+                const segEnd = startY + opening.start;
+
+                if (segEnd - segStart > 0.5) {
+                  drawWallPiece(ctx, sx, x, segStart, x, segEnd, thickness);
+                }
+
+                cursor = startY + opening.end;
+              });
+
+              if (endY - cursor > 0.5) {
+                drawWallPiece(ctx, sx, x, cursor, x, endY, thickness);
+              }
+            } else {
+              const y = w.y1;
+              const startX = Math.min(w.x1, w.x2);
+              const endX = Math.max(w.x1, w.x2);
+
+              let cursor = startX;
+
+              openings.forEach((opening) => {
+                const segStart = cursor;
+                const segEnd = startX + opening.start;
+
+                if (segEnd - segStart > 0.5) {
+                  drawWallPiece(ctx, sx, segStart, y, segEnd, y, thickness);
+                }
+
+                cursor = startX + opening.end;
+              });
+
+              if (endX - cursor > 0.5) {
+                drawWallPiece(ctx, sx, cursor, y, endX, y, thickness);
+              }
+            }
+          });
+        };
+
+        const drawWindows = (ctx, sx) => {
+          windows.forEach((win) => {
+            const info = getWindowPositionInfo(win);
+            if (!info) return;
+
+            const { wall, center, angle } = info;
+            const thickness = wall.thickness || DEFAULT_WALL_THICKNESS;
+
+            const winLen =
+              win.length !== undefined
+                ? win.length
+                : Math.max(4, getWallLength(wall) * 0.8);
+
+            let h = thickness + 2;
+
+            ctx.save();
+            ctx.translate(center.x, center.y);
+            ctx.rotate(angle);
+
+            ctx.fillStyle = COLORS.windowFill;
+            ctx.fillRect(-winLen / 2, -h / 2, winLen, h);
+
+            ctx.strokeStyle = COLORS.windowStroke;
+            ctx.lineWidth = 0.8 / sx;
+            ctx.strokeRect(-winLen / 2, -h / 2, winLen, h);
+
+            ctx.restore();
+          });
+        };
+
+        const drawFurniture = (ctx, sx, cs) => {
+          furniture.forEach((f) => {
+            let r = getRoomById(f.roomId);
+            if (!r) return;
+
+            let fx = r.x + f.relX,
+              fy = r.y + f.relY;
+
+            ctx.save();
+
+            // 柔和阴影
+            ctx.shadowColor = "rgba(80, 60, 50, 0.10)";
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+
+            // 家具主体
+            ctx.fillStyle = "rgba(251, 239, 230, 0.82)";
+            roundRect(ctx, fx, fy, f.w, f.h, 4);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "rgba(140, 110, 95, 0.20)";
+            ctx.lineWidth = 0.8 / sx;
+            roundRect(ctx, fx, fy, f.w, f.h, 4);
+            ctx.stroke();
+
+            ctx.fillStyle = "#7a5746";
+            ctx.font = `normal ${cs - 2}px 'MainFont', monospace`;
+            ctx.fillText(
+              getFurnitureConfig(f.type).label.replace("• ", ""),
+              fx + 4,
+              fy + 12,
+            );
+
+            ctx.restore();
+          });
+        };
+
+        const drawDoors = (ctx, sx) => {
+          doors.forEach((d) => {
+            let pos = getDoorPosition(d);
+
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.rotate(
+              { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 }[
+                d.direction
+              ] || 0,
+            );
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, d.radius ?? globalDoorRadius, -Math.PI / 2, 0);
+            ctx.closePath();
+            ctx.fillStyle = COLORS.doorFill;
+            ctx.fill();
+            ctx.strokeStyle = COLORS.doorStroke;
+            ctx.lineWidth = 1 / sx;
+            ctx.stroke();
+            ctx.restore();
+          });
+        };
+
+        const redraw = () => {
+          let c = els.canvas.parentElement,
+            s = getComputedStyle(c);
+          let w = Math.min(
+            Math.max(
+              c.clientWidth -
+                parseFloat(s.paddingLeft) -
+                parseFloat(s.paddingRight),
+              200,
+            ),
+            800,
+          );
+          let h = (w * LOGIC_H) / LOGIC_W,
+            dpr = devicePixelRatio || 1;
+          els.canvas.width = w * dpr;
+          els.canvas.height = h * dpr;
+          els.canvas.style.width = w + "px";
+          els.canvas.style.height = h + "px";
+          let ctx = els.ctx;
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.scale((w * dpr) / LOGIC_W, (h * dpr) / LOGIC_H);
+          ctx.fillStyle = COLORS.panelBg;
+          ctx.fillRect(0, 0, LOGIC_W, LOGIC_H);
+          let sx = (w * dpr) / LOGIC_W,
+            fs = Math.min(16, Math.max(12, LOGIC_W / 40)),
+            cs = Math.min(12, Math.max(9, LOGIC_W / 55));
+          drawRooms(ctx, sx, fs, cs);
+          drawWalls(ctx, sx);
+          drawWindows(ctx, sx);
+          drawFurniture(ctx, sx, cs);
+          // drawDoors(ctx, sx);
+        };
+
+        // ############################################################################
+        // 第七部分：点击检测辅助函数
+        // ############################################################################
+        const getCanvasCoord = (cx, cy) => {
+          let r = els.canvas.getBoundingClientRect();
+          return {
+            x: Math.min(
+              LOGIC_W,
+              Math.max(0, ((cx - r.left) * LOGIC_W) / r.width),
+            ),
+            y: Math.min(
+              LOGIC_H,
+              Math.max(0, ((cy - r.top) * LOGIC_H) / r.height),
+            ),
+          };
+        };
+
+        const findClickedRoom = (x, y) =>
+          rooms.find(
+            (r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h,
+          );
+
+        const findClickedFurniture = (x, y) =>
+          furniture.find((f) => {
+            let r = getRoomById(f.roomId);
+            return (
+              r &&
+              x >= r.x + f.relX &&
+              x <= r.x + f.relX + f.w &&
+              y >= r.y + f.relY &&
+              y <= r.y + f.relY + f.h
+            );
+          });
+
+        const findClickedWall = (x, y) => {
+          const hits = [];
+
+          for (const w of walls) {
+            const thickness = w.thickness || DEFAULT_WALL_THICKNESS;
+            const dx = w.x2 - w.x1;
+            const dy = w.y2 - w.y1;
+            const len = Math.hypot(dx, dy);
+            if (len < 0.1) continue;
+
+            const nx = -dy / len;
+            const ny = dx / len;
+
+            const proj = ((x - w.x1) * dx + (y - w.y1) * dy) / len;
+            if (proj < -thickness / 2 || proj > len + thickness / 2) continue;
+
+            const dist = Math.abs((x - w.x1) * nx + (y - w.y1) * ny);
+            if (dist > thickness / 2 + 3) continue;
+
+            hits.push({
+              wall: w,
+              dist,
+              len,
+              centerBias: Math.abs(proj - len / 2),
+            });
+          }
+
+          if (hits.length === 0) return null;
+
+          hits.sort((a, b) => {
+            if (Math.abs(a.dist - b.dist) > 0.01) return a.dist - b.dist;
+            if (Math.abs(a.len - b.len) > 0.01) return a.len - b.len;
+            return a.centerBias - b.centerBias;
+          });
+
+          return hits[0].wall;
+        };
+
+        const findClickedDoor = (x, y) => {
+          return doors.find((d) => {
+            const a = getRoomById(d.roomA),
+              b = getRoomById(d.roomB);
+            const pos = getDoorPosition(d);
+            const dx = x - pos.x,
+              dy = y - pos.y;
+            const angle =
+              { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 }[
+                d.direction
+              ] || 0;
+            const lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            const ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+            const radius = d.radius ?? globalDoorRadius;
+            return (
+              (lx >= -2 &&
+                lx <= radius &&
+                ly >= -radius / 2 &&
+                ly <= radius / 2) ||
+              (lx >= 0 &&
+                lx <= radius &&
+                ly >= -radius / 2 &&
+                ly <= radius / 2 &&
+                Math.hypot(lx, ly) <= radius)
+            );
+          });
+        };
+
+        const findClickedWindow = (x, y) => {
+          return windows.find((win) => {
+            const info = getWindowPositionInfo(win);
+            if (!info) return false;
+
+            const { wall, center, angle } = info;
+            const thickness = (wall.thickness || DEFAULT_WALL_THICKNESS) + 2;
+            const winLen =
+              win.length !== undefined
+                ? win.length
+                : Math.max(4, getWallLength(wall) * 0.8);
+
+            const dx = x - center.x;
+            const dy = y - center.y;
+
+            const lx = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            const ly = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+            return (
+              lx >= -winLen / 2 &&
+              lx <= winLen / 2 &&
+              ly >= -thickness / 2 - 4 &&
+              ly <= thickness / 2 + 4
+            );
+          });
+        };
+
+        const getWallAxis = (w) => {
+          return Math.abs(w.x1 - w.x2) < Math.abs(w.y1 - w.y2)
+            ? "vertical"
+            : "horizontal";
+        };
+
+        const getWallLength = (w) => {
+          return Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
+        };
+
+        const getWallStartPoint = (w) => {
+          if (getWallAxis(w) === "vertical") {
+            return w.y1 <= w.y2 ? { x: w.x1, y: w.y1 } : { x: w.x2, y: w.y2 };
+          }
+          return w.x1 <= w.x2 ? { x: w.x1, y: w.y1 } : { x: w.x2, y: w.y2 };
+        };
+
+        const getWallLineValue = (w) => {
+          return getWallAxis(w) === "vertical" ? w.x1 : w.y1;
+        };
+
+        const getPointOnWallByRatio = (w, ratio) => {
+          const t = Math.max(0, Math.min(1, ratio ?? 0.5));
+          return {
+            x: w.x1 + (w.x2 - w.x1) * t,
+            y: w.y1 + (w.y2 - w.y1) * t,
+          };
+        };
+
+        const getDoorCandidateWalls = (door) => {
+          const axis = door.wallAxis;
+
+          let candidates = walls.filter((w) => getWallAxis(w) === axis);
+
+          if (door.roomA && door.roomB) {
+            candidates = candidates.filter((w) => {
+              const ids = w.roomIds || [];
+              return ids.includes(door.roomA) && ids.includes(door.roomB);
+            });
+          } else if (door.roomA) {
+            candidates = candidates.filter((w) => {
+              const ids = w.roomIds || [];
+              return ids.includes(door.roomA);
+            });
+          }
+
+          if (candidates.length === 0) return [];
+
+          if (typeof door.wallLineValue === "number") {
+            candidates.sort((a, b) => {
+              return (
+                Math.abs(getWallLineValue(a) - door.wallLineValue) -
+                Math.abs(getWallLineValue(b) - door.wallLineValue)
+              );
+            });
+          }
+
+          return candidates;
+        };
+
+        const getLinkedWallForDoor = (door) => {
+          const candidates = getDoorCandidateWalls(door);
+          if (candidates.length === 0) return null;
+
+          const sorted = [...candidates].sort((a, b) => {
+            const lineDiffA =
+              typeof door.wallLineValue === "number"
+                ? Math.abs(getWallLineValue(a) - door.wallLineValue)
+                : 0;
+            const lineDiffB =
+              typeof door.wallLineValue === "number"
+                ? Math.abs(getWallLineValue(b) - door.wallLineValue)
+                : 0;
+
+            if (lineDiffA !== lineDiffB) return lineDiffA - lineDiffB;
+
+            return getWallLength(b) - getWallLength(a);
+          });
+
+          const baseWall = sorted[0];
+          const group = getWallGroup(baseWall);
+
+          if (group.length === 0) return baseWall;
+
+          group.sort((a, b) => getWallLength(b) - getWallLength(a));
+          return group[0];
+        };
+
+        const getDoorPosition = (door) => {
+          const mergedWall = getMergedWallForDoor(door);
+
+          if (mergedWall) {
+            let ratio;
+
+            if (
+              typeof door.posX === "number" &&
+              typeof door.posY === "number"
+            ) {
+              ratio = getPointRatioOnWall(mergedWall, {
+                x: door.posX,
+                y: door.posY,
+              });
+            } else if (typeof door.wallRatio === "number") {
+              ratio = door.wallRatio;
+            } else if (typeof door.wallOffset === "number") {
+              ratio = door.wallOffset / Math.max(getWallLength(mergedWall), 1);
+            } else {
+              ratio = 0.5;
+            }
+
+            return getPointOnWallByRatio(mergedWall, ratio);
+          }
+
+          const linkedWall = getLinkedWallForDoor(door);
+          if (linkedWall) {
+            const ratio =
+              typeof door.wallRatio === "number"
+                ? door.wallRatio
+                : typeof door.wallOffset === "number"
+                  ? door.wallOffset / Math.max(getWallLength(linkedWall), 1)
+                  : 0.5;
+
+            return getPointOnWallByRatio(linkedWall, ratio);
+          }
+
+          if (typeof door.posX === "number" && typeof door.posY === "number") {
+            return { x: door.posX, y: door.posY };
+          }
+
+          return { x: 0, y: 0 };
+        };
+
+        const updateDoorByPointOnWall = (door, wall, point) => {
+          const len = Math.max(getWallLength(wall), 1);
+          const dx = wall.x2 - wall.x1;
+          const dy = wall.y2 - wall.y1;
+
+          const rawRatio =
+            ((point.x - wall.x1) * dx + (point.y - wall.y1) * dy) / (len * len);
+
+          const ratio = Math.max(0, Math.min(1, rawRatio));
+
+          const snappedPoint = {
+            x: wall.x1 + dx * ratio,
+            y: wall.y1 + dy * ratio,
+          };
+
+          door.wallAxis = getWallAxis(wall);
+          door.wallLineValue = getWallLineValue(wall);
+          door.wallRatio = ratio;
+          door.wallOffset = len * ratio;
+          door.posX = snappedPoint.x;
+          door.posY = snappedPoint.y;
+
+          return snappedPoint;
+        };
+
+        const getLinkedWallForWindow = (win) => {
+          if (win.wallId) {
+            const directWall = walls.find((w) => w.id === win.wallId);
+            if (directWall) return directWall;
+          }
+
+          let candidates = walls.filter((w) => getWallAxis(w) === win.wallAxis);
+
+          if (typeof win.wallLineValue === "number") {
+            candidates.sort((a, b) => {
+              return (
+                Math.abs(getWallLineValue(a) - win.wallLineValue) -
+                Math.abs(getWallLineValue(b) - win.wallLineValue)
+              );
+            });
+          }
+
+          return candidates.length > 0 ? candidates[0] : null;
+        };
+
+        const getWindowPositionInfo = (win) => {
+          const wall = getLinkedWallForWindow(win);
+          if (!wall) return null;
+
+          const wallLen = Math.max(getWallLength(wall), 1);
+
+          let ratio;
+          if (typeof win.wallRatio === "number") {
+            ratio = win.wallRatio;
+          } else if (typeof win.wallOffset === "number") {
+            ratio = win.wallOffset / wallLen;
+          } else {
+            ratio = 0.5;
+          }
+
+          ratio = Math.max(0, Math.min(1, ratio));
+
+          const center = getPointOnWallByRatio(wall, ratio);
+
+          return {
+            wall,
+            center,
+            wallLen,
+            angle: Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1),
+          };
+        };
+
+        const updateWindowByPointOnWall = (win, wall, point) => {
+          const len = Math.max(getWallLength(wall), 1);
+          const ratio = getPointRatioOnWall(wall, point);
+
+          win.wallId = wall.id;
+          win.wallAxis = getWallAxis(wall);
+          win.wallLineValue = getWallLineValue(wall);
+          win.wallRatio = ratio;
+          win.wallOffset = len * ratio;
+
+          return win;
+        };
+
+        const calculateDoorPosition = (a, b) => {
+          const t = 2;
+          if (
+            Math.abs(a.x + a.w - b.x) <= t &&
+            Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)
+          )
+            return {
+              x: a.x + a.w,
+              y: (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2,
+            };
+          if (
+            Math.abs(b.x + b.w - a.x) <= t &&
+            Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y)
+          )
+            return {
+              x: b.x + b.w,
+              y: (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2,
+            };
+          if (
+            Math.abs(a.y + a.h - b.y) <= t &&
+            Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x)
+          )
+            return {
+              x: (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2,
+              y: a.y + a.h,
+            };
+          if (
+            Math.abs(b.y + b.h - a.y) <= t &&
+            Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x)
+          )
+            return {
+              x: (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2,
+              y: b.y + b.h,
+            };
+          return {
+            x: (a.x + a.w / 2 + b.x + b.w / 2) / 2,
+            y: (a.y + a.h / 2 + b.y + b.h / 2) / 2,
+          };
+        };
+
+        // ############################################################################
+        // 第八部分：拖拽交互逻辑 (startDrag, onDragMove, onDragEnd)
+        // ############################################################################
+        const startDrag = (cx, cy) => {
+          let { x, y } = getCanvasCoord(cx, cy);
+          let ff = findClickedFurniture(x, y);
+          if (ff) {
+            dragState = {
+              active: true,
+              type: "furniture",
+              target: ff,
+              startX: x,
+              startY: y,
+              origX: ff.relX,
+              origY: ff.relY,
+            };
+            dragMoved = false;
+            return true;
+          }
+          let fr = findClickedRoom(x, y);
+          if (fr) {
+            dragState = {
+              active: true,
+              type: "room",
+              target: fr,
+              startX: x,
+              startY: y,
+              origX: fr.x,
+              origY: fr.y,
+            };
+            dragMoved = false;
+            return true;
+          }
+          return false;
+        };
+
+        const onDragMove = (cx, cy) => {
+          if (!dragState.active) return;
+
+          let { x, y } = getCanvasCoord(cx, cy);
+
+          // 鼠标移动太小，就先不算真正拖拽
+          const moveDistance = Math.hypot(
+            x - dragState.startX,
+            y - dragState.startY,
+          );
+          if (!dragMoved && moveDistance < 3) return;
+
+          dragMoved = true;
+
+          if (dragState.type === "furniture") {
+            let targetRoom = rooms.find(
+              (r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h,
+            );
+            if (targetRoom) {
+              dragState.target.roomId = targetRoom.id;
+              let rx =
+                Math.round((x - targetRoom.x - dragState.target.w / 2) / 5) * 5;
+              let ry =
+                Math.round((y - targetRoom.y - dragState.target.h / 2) / 5) * 5;
+              dragState.target.relX = Math.max(
+                0,
+                Math.min(rx, targetRoom.w - dragState.target.w),
+              );
+              dragState.target.relY = Math.max(
+                0,
+                Math.min(ry, targetRoom.h - dragState.target.h),
+              );
+            }
+          } else if (dragState.type === "room") {
+            let rx = dragState.origX + (x - dragState.startX);
+            let ry = dragState.origY + (y - dragState.startY);
+            rx = Math.round(rx / 5) * 5;
+            ry = Math.round(ry / 5) * 5;
+            dragState.target.x = Math.max(
+              0,
+              Math.min(rx, LOGIC_W - dragState.target.w),
+            );
+            dragState.target.y = Math.max(
+              0,
+              Math.min(ry, LOGIC_H - dragState.target.h),
+            );
+          }
+
+          redraw();
+        };
+
+        const onDragEnd = () => {
+          if (!dragState.active) return;
+
+          const wasMoved = dragMoved;
+          const dragType = dragState.type;
+          const dragTarget = dragState.target;
+
+          // 先把拖拽状态清掉，避免后面的同步报错把点击链路卡死
+          dragState = {
+            active: false,
+            type: null,
+            target: null,
+            startX: 0,
+            startY: 0,
+            origX: 0,
+            origY: 0,
+          };
+
+          if (!wasMoved) {
+            dragMoved = false;
+            return;
+          }
+
+          skipNextEdit = { type: dragType, id: dragTarget?.id || null };
+
+          if (dragType === "room" && dragTarget) {
+            let sn = snapRoom(dragTarget, rooms);
+            dragTarget.x = sn.x;
+            dragTarget.y = sn.y;
+
+            fixRoomOverlapIfNeeded(dragTarget);
+
+            syncLayout();
+            saveWithHistory();
+          } else if (dragType === "furniture") {
+            saveWithHistory();
+          }
+          dragMoved = false;
+        };
+
+        const snapRoom = (room, all, th = 5) => {
+          let sx = room.x,
+            sy = room.y;
+          all.forEach((o) => {
+            if (o.id === room.id) return;
+            if (Math.abs(room.x + room.w - o.x) <= th) sx = o.x - room.w;
+            if (Math.abs(o.x + o.w - room.x) <= th) sx = o.x + o.w;
+            if (Math.abs(room.y + room.h - o.y) <= th) sy = o.y - room.h;
+            if (Math.abs(o.y + o.h - room.y) <= th) sy = o.y + o.h;
+          });
+          return {
+            x: Math.max(0, Math.min(sx, LOGIC_W - room.w)),
+            y: Math.max(0, Math.min(sy, LOGIC_H - room.h)),
+          };
+        };
+
+        const roomOverlapsAny = (room, allRooms = rooms) => {
+          return allRooms.some((r) => roomsOverlap(room, r));
+        };
+
+        const tryResolveRoomOverlap = (room, allRooms = rooms) => {
+          const overlaps = getOverlappingRooms(room, allRooms);
+          if (overlaps.length === 0) return false;
+
+          const candidates = [];
+
+          overlaps.forEach((other) => {
+            candidates.push(
+              { x: other.x - room.w, y: room.y },
+              { x: other.x + other.w, y: room.y },
+              { x: room.x, y: other.y - room.h },
+              { x: room.x, y: other.y + other.h },
+
+              { x: other.x - room.w, y: other.y },
+              { x: other.x + other.w, y: other.y },
+              { x: other.x, y: other.y - room.h },
+              { x: other.x, y: other.y + other.h },
+            );
+          });
+
+          const validCandidates = candidates
+            .map((p) => {
+              const testRoom = {
+                ...room,
+                x: Math.max(0, Math.min(p.x, LOGIC_W - room.w)),
+                y: Math.max(0, Math.min(p.y, LOGIC_H - room.h)),
+              };
+
+              const snapped = snapRoom(testRoom, allRooms);
+              testRoom.x = snapped.x;
+              testRoom.y = snapped.y;
+
+              const overlapsAfterMove = allRooms.some(
+                (r) => r.id !== room.id && roomsOverlap(testRoom, r),
+              );
+
+              return {
+                x: testRoom.x,
+                y: testRoom.y,
+                moveDist: Math.hypot(testRoom.x - room.x, testRoom.y - room.y),
+                overlapsAfterMove,
+              };
+            })
+            .filter((c, idx, arr) => {
+              return (
+                arr.findIndex(
+                  (x) =>
+                    Math.abs(x.x - c.x) < 0.01 && Math.abs(x.y - c.y) < 0.01,
+                ) === idx
+              );
+            })
+            .filter((c) => !c.overlapsAfterMove);
+
+          if (validCandidates.length === 0) return false;
+
+          validCandidates.sort((a, b) => a.moveDist - b.moveDist);
+
+          room.x = validCandidates[0].x;
+          room.y = validCandidates[0].y;
+          return true;
+        };
+
+        const fixRoomOverlapIfNeeded = (room) => {
+          if (!room) return;
+
+          const overlaps = getOverlappingRooms(room, rooms);
+          if (overlaps.length === 0) return;
+
+          const moved = tryResolveRoomOverlap(room, rooms);
+
+          if (!moved) {
+            const names = overlaps.map((r) => r.name).join("、");
+            showToast(`房间与 ${names} 重叠了`);
+          }
+        };
+
+        const roomsOverlap = (a, b) => {
+          if (!a || !b || a.id === b.id) return false;
+
+          return !(
+            a.x + a.w <= b.x ||
+            b.x + b.w <= a.x ||
+            a.y + a.h <= b.y ||
+            b.y + b.h <= a.y
+          );
+        };
+
+        const getOverlappingRooms = (targetRoom, allRooms = rooms) => {
+          return allRooms.filter((r) => roomsOverlap(targetRoom, r));
+        };
+
+        const showRoomOverlapToast = (targetRoom) => {
+          const overlaps = getOverlappingRooms(targetRoom, rooms);
+          if (overlaps.length === 0) return;
+
+          const names = overlaps.map((r) => r.name).join("、");
+          showToast(`房间与 ${names} 重叠了`);
+        };
+
+        const renderWallWindowsList = () => {
+          const listDiv = document.getElementById("wallWindowsList");
+          if (!listDiv) return;
+
+          listDiv.innerHTML = "";
+
+          if (!currentWall) return;
+
+          const wallWindows = windows.filter((win) => {
+            try {
+              const linkedWall = getLinkedWallForWindow(win);
+              return linkedWall && linkedWall.id === currentWall.id;
+            } catch (err) {
+              return false;
+            }
+          });
+
+          if (wallWindows.length === 0) {
+            listDiv.innerHTML =
+              '<div style="opacity:0.75; font-size:13px; padding:4px 0;">这段墙还没有窗户</div>';
+            return;
+          }
+
+          wallWindows.forEach((win, idx) => {
+            const item = document.createElement("div");
+            item.style.display = "flex";
+            item.style.alignItems = "center";
+            item.style.marginBottom = "6px";
+            item.style.gap = "6px";
+
+            const len = typeof win.length === "number" ? win.length : 8;
+
+            item.innerHTML = `
+                  <span style="flex:1;">窗${idx + 1} 长:${Math.round(len)}</span>
+                  <button data-win-id="${win.id}" class="edit-win-btn" style="padding:2px 8px;">✎</button>
+                  <button data-win-id="${win.id}" class="del-win-btn" style="padding:2px 8px;">✖</button>
+                `;
+
+            listDiv.appendChild(item);
+          });
+
+          listDiv.querySelectorAll(".edit-win-btn").forEach((btn) => {
+            btn.onclick = () => {
+              const winId = btn.dataset.winId;
+              const win = windows.find((w) => w.id === winId);
+              if (!win) return;
+
+              currentWindow = win;
+              document.getElementById("windowLengthInput").value =
+                typeof win.length === "number" ? win.length : 8;
+
+              showModal(els.windowModal);
+            };
+          });
+
+          listDiv.querySelectorAll(".del-win-btn").forEach((btn) => {
+            btn.onclick = () => {
+              const winId = btn.dataset.winId;
+              windows = windows.filter((w) => w.id !== winId);
+
+              renderWallWindowsList();
+              redraw();
+              saveWithHistory();
+            };
+          });
+        };
+
+        // ############################################################################
+        // 第九部分：画布点击事件处理器 (handleCanvasAction)
+        // ############################################################################
+        const handleCanvasAction = (cx, cy) => {
+          if (dragState.active) return;
+          const { x, y } = getCanvasCoord(cx, cy);
+
+          // ----- 开窗模式 -----
+          if (windowPlacementMode) {
+            let minDist = 10,
+              closestWall = null,
+              closestPoint = null;
+
+            walls.forEach((w) => {
+              const C = w.x2 - w.x1,
+                D = w.y2 - w.y1,
+                lenSq = C * C + D * D;
+
+              let param = lenSq
+                ? ((x - w.x1) * C + (y - w.y1) * D) / lenSq
+                : -1;
+
+              param = Math.max(0, Math.min(1, param));
+
+              const px = w.x1 + param * C,
+                py = w.y1 + param * D;
+
+              const dist = Math.hypot(x - px, y - py);
+
+              if (dist < minDist) {
+                minDist = dist;
+                closestWall = w;
+                closestPoint = { x: px, y: py };
+              }
+            });
+
+            if (closestWall && closestPoint) {
+              const wallLen = Math.max(getWallLength(closestWall), 1);
+              const wallRatio = getPointRatioOnWall(closestWall, closestPoint);
+
+              const newWindow = {
+                id: generateId(),
+                wallId: closestWall.id,
+                wallAxis: getWallAxis(closestWall),
+                wallLineValue: getWallLineValue(closestWall),
+                wallRatio: wallRatio,
+                wallOffset: wallLen * wallRatio,
+                length: Math.max(8, Math.min(24, wallLen * 0.4)),
+              };
+
+              windows.push(newWindow);
+              currentWindow = newWindow;
+              document.getElementById("windowLengthInput").value =
+                newWindow.length;
+
+              redraw();
+              saveWithHistory();
+              showModal(els.windowModal, cx, cy);
+            } else {
+              showToast("请点击墙体");
+            }
+
+            return;
+          }
+
+          // ----- 开门模式 -----
+          if (doorPlacementMode) {
+            const clickedDoor = findClickedDoor(x, y);
+            if (clickedDoor) {
+              doors = doors.filter((d) => d.id !== clickedDoor.id);
+              redraw();
+              saveWithHistory();
+              return;
+            }
+
+            const mergedWalls = getMergedWalls();
+
+            let minDist = 10,
+              closestWall = null,
+              closestPoint = null;
+
+            mergedWalls.forEach((w) => {
+              const C = w.x2 - w.x1,
+                D = w.y2 - w.y1,
+                lenSq = C * C + D * D;
+
+              let param = lenSq
+                ? ((x - w.x1) * C + (y - w.y1) * D) / lenSq
+                : -1;
+
+              param = Math.max(0, Math.min(1, param));
+
+              const px = w.x1 + param * C,
+                py = w.y1 + param * D;
+
+              const dist = Math.hypot(x - px, y - py);
+
+              if (dist < minDist) {
+                minDist = dist;
+                closestWall = w;
+                closestPoint = { x: px, y: py };
+              }
+            });
+
+            if (closestWall && closestPoint) {
+              const wallLen = Math.max(getWallLength(closestWall), 1);
+              const wallDx = closestWall.x2 - closestWall.x1;
+              const wallDy = closestWall.y2 - closestWall.y1;
+
+              const rawRatio =
+                ((closestPoint.x - closestWall.x1) * wallDx +
+                  (closestPoint.y - closestWall.y1) * wallDy) /
+                (wallLen * wallLen);
+
+              const wallRatio = Math.max(0, Math.min(1, rawRatio));
+
+              doors.push({
+                id: generateId(),
+                roomA: closestWall.roomIds?.[0] || null,
+                roomB: closestWall.roomIds?.[1] || null,
+                wallAxis: getWallAxis(closestWall),
+                wallLineValue: getWallLineValue(closestWall),
+                wallRatio: wallRatio,
+                wallOffset: wallLen * wallRatio,
+                posX: closestPoint.x,
+                posY: closestPoint.y,
+                direction: "right",
+                radius: globalDoorRadius,
+              });
+
+              redraw();
+              saveWithHistory();
+            } else {
+              showToast("请点击墙体");
+            }
+
+            return;
+          }
+
+          // ----- 家具放置 -----
+          if (selectedFurnitureType) {
+            const r = rooms.find(
+              (rm) =>
+                x >= rm.x && x <= rm.x + rm.w && y >= rm.y && y <= rm.y + rm.h,
+            );
+            if (!r) {
+              showToast("请点击房间内部放置家具");
+              return;
+            }
+
+            const conf = getFurnitureConfig(selectedFurnitureType);
+            let relX = Math.max(
+              0,
+              Math.min(x - r.x - conf.w / 2, r.w - conf.w),
+            );
+            let relY = Math.max(
+              0,
+              Math.min(y - r.y - conf.h / 2, r.h - conf.h),
+            );
+
+            furniture.push({
+              id: generateId(),
+              roomId: r.id,
+              type: selectedFurnitureType,
+              relX,
+              relY,
+              w: conf.w,
+              h: conf.h,
+            });
+
+            selectedFurnitureType = null;
+            document
+              .querySelectorAll(".furniture-item")
+              .forEach((el) => el.classList.remove("active"));
+
+            redraw();
+            saveWithHistory();
+            return;
+          }
+
+          // ----- 家具编辑 -----
+          const clickedF = findClickedFurniture(x, y);
+          if (clickedF) {
+            if (
+              skipNextEdit.type === "furniture" &&
+              skipNextEdit.id === clickedF.id
+            ) {
+              skipNextEdit = { type: null, id: null };
+              return;
+            }
+            skipNextEdit = { type: null, id: null };
+            currentEditingFurniture = clickedF;
+            document.getElementById("modalWidth").value = clickedF.w;
+            document.getElementById("modalHeight").value = clickedF.h;
+            showModal(els.editModal, cx, cy);
+            return;
+          }
+
+          // ----- 门编辑 -----
+          const clickedDoor = findClickedDoor(x, y);
+          if (clickedDoor) {
+            currentDoor = clickedDoor;
+            document.getElementById("doorDirectionSelect").value =
+              clickedDoor.direction || "right";
+            document.getElementById("doorRadiusInput").value =
+              clickedDoor.radius ?? globalDoorRadius;
+            showModal(els.doorModal, cx, cy);
+            return;
+          }
+
+          // ----- 窗户编辑 -----
+          const clickedWindow = findClickedWindow(x, y);
+          if (clickedWindow) {
+            currentWindow = clickedWindow;
+            document.getElementById("windowLengthInput").value =
+              clickedWindow.length ?? 8;
+            showModal(els.windowModal, cx, cy);
+            return;
+          }
+
+          // ----- 墙体编辑 -----
+          const clickedWall = findClickedWall(x, y);
+          if (clickedWall) {
+            currentWall = clickedWall;
+            document.getElementById("wallThicknessInput").value =
+              clickedWall.thickness || DEFAULT_WALL_THICKNESS;
+
+            showModal(els.wallModal, cx, cy);
+
+            try {
+              renderWallWindowsList();
+            } catch (err) {
+              console.error("renderWallWindowsList 出错：", err);
+              document.getElementById("wallWindowsList").innerHTML = "";
+            }
+
+            return;
+          }
+
+          // ----- 房间编辑 -----
+          const clickedRoom = findClickedRoom(x, y);
+          if (clickedRoom) {
+            if (
+              skipNextEdit.type === "room" &&
+              skipNextEdit.id === clickedRoom.id
+            ) {
+              skipNextEdit = { type: null, id: null };
+              return;
+            }
+            skipNextEdit = { type: null, id: null };
+            currentRoom = clickedRoom;
+            document.getElementById("roomNameInput").value = clickedRoom.name;
+            document.getElementById("roomFloorStyleSelect").value =
+              clickedRoom.floorStyle || "woodSoft";
+            document.getElementById("roomWInput").value = clickedRoom.w;
+            document.getElementById("roomHInput").value = clickedRoom.h;
+            showModal(els.roomModal, cx, cy);
+            return;
+          }
+        };
+
+        // ############################################################################
+        // 第十部分：事件绑定与初始化 (多行清晰版)
+        // ############################################################################
+        const bindEvents = () => {
+          // ----- 画布鼠标/触摸事件 -----
+          els.canvas.addEventListener("mousedown", (e) => {
+            if (startDrag(e.clientX, e.clientY)) e.preventDefault();
+          });
+
+          window.addEventListener("mousemove", (e) => {
+            if (!dragState.active) return;
+
+            if (e.buttons === 0) {
+              onDragEnd();
+              return;
+            }
+
+            e.preventDefault();
+            onDragMove(e.clientX, e.clientY);
+          });
+
+          window.addEventListener("mouseup", onDragEnd);
+          window.addEventListener("blur", onDragEnd);
+          document.addEventListener("mouseleave", onDragEnd);
+
+          els.canvas.addEventListener("click", (e) => {
+            handleCanvasAction(e.clientX, e.clientY);
+          });
+
+          // 触摸事件
+          els.canvas.addEventListener(
+            "touchstart",
+            (e) => {
+              e.preventDefault();
+              const t = e.touches[0];
+              if (t && startDrag(t.clientX, t.clientY)) e.preventDefault();
+            },
+            { passive: false },
+          );
+
+          els.canvas.addEventListener(
+            "touchmove",
+            (e) => {
+              e.preventDefault();
+              const t = e.touches[0];
+              if (t && dragState.active) onDragMove(t.clientX, t.clientY);
+            },
+            { passive: false },
+          );
+
+          els.canvas.addEventListener("touchend", (e) => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+
+            const shouldOpenEditor = dragState.active && !dragMoved && t;
+
+            onDragEnd();
+
+            if (shouldOpenEditor && t) {
+              handleCanvasAction(t.clientX, t.clientY);
+              return;
+            }
+
+            if (!dragState.active && t) {
+              handleCanvasAction(t.clientX, t.clientY);
+            }
+          });
+
+          els.canvas.addEventListener("touchcancel", (e) => {
+            e.preventDefault();
+            onDragEnd();
+          });
+
+          // ----- 控制栏按钮 -----
+          document.getElementById("addRoomBar").onclick = () => {
+            let name = prompt("房间名称", "新房间");
+            if (name) {
+              rooms.push({
+                id: generateId(),
+                name: name,
+                x: 150,
+                y: 150,
+                w: 80,
+                h: 60,
+              });
+              syncLayout();
+              saveWithHistory();
+            }
+          };
+
+          document.getElementById("generateWallsBtn").onclick = generateWalls;
+
+          document.getElementById("doorPlacementBtn").onclick = () => {
+            doorPlacementMode = !doorPlacementMode;
+
+            if (doorPlacementMode) {
+              windowPlacementMode = false;
+              selectedFurnitureType = null;
+              document
+                .querySelectorAll(".furniture-item")
+                .forEach((el) => el.classList.remove("active"));
+            }
+
+            let btn = document.getElementById("doorPlacementBtn");
+            if (doorPlacementMode) {
+              btn.style.background = "#FCE4Ec";
+              btn.style.borderColor = "#FCE4Ec";
+              btn.textContent = "• 开门 (激活)";
+            } else {
+              btn.style.background = "";
+              btn.style.borderColor = "";
+              btn.textContent = "• 开门";
+            }
+          };
+
+          document.getElementById("importBtn").onclick = () => {
+            document.getElementById("fileImportInput").click();
+          };
+
+          document.getElementById("resetBtn").onclick = () => {
+            rooms = JSON.parse(JSON.stringify(DEFAULT_ROOMS));
+            doors = [];
+            walls = [];
+            windows = [];
+            furniture = [];
+            customFurnitureItems = [];
+            globalDoorRadius = 16;
+            hiddenWallKeys = [];
+            openPassages = [];
+
+            renderFurnitureLibrary();
+            syncLayout();
+            saveWithHistory();
+          };
+
+          document.getElementById("exportBtn").onclick = () => {
+            showModal(els.exportModal);
+          };
+
+          document.getElementById("exportPngBtn").onclick = () => {
+            redraw();
+            els.canvas.toBlob((blob) => {
+              let a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "floorplan.png";
+              a.click();
+            });
+            els.exportModal.style.display = "none";
+          };
+
+          document.getElementById("exportJsonBtn").onclick = () => {
+            let data = {
+              rooms,
+              doors,
+              walls,
+              windows,
+              furniture,
+              customFurnitureItems,
+              hiddenWallKeys,
+              openPassages,
+              globalDoorRadius,
+            };
+            let blob = new Blob([JSON.stringify(data, null, 2)], {
+              type: "application/json",
+            });
+            let a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "floorplan.json";
+            a.click();
+            els.exportModal.style.display = "none";
+          };
+
+          document.getElementById("exportCancelBtn").onclick = () => {
+            els.exportModal.style.display = "none";
+          };
+
+          els.undoBtn.onclick = undo;
+
+          window.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key === "z") {
+              e.preventDefault();
+              undo();
+            }
+          });
+
+          // ----- 文件导入 -----
+          document.getElementById("fileImportInput").onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+
+            let reader = new FileReader();
+            reader.onload = (ev) => {
+              try {
+                let d = JSON.parse(ev.target.result);
+                rooms = (Array.isArray(d) ? d : d.rooms || [d]).map((r) => ({
+                  ...r,
+                  id: r.id || generateId(),
+                }));
+                walls = d.walls || [];
+                windows = d.windows || [];
+                furniture = d.furniture || [];
+                doors = (d.doors || []).map((dd) => ({
+                  ...dd,
+                  id: dd.id || generateId(),
+                  direction: dd.direction || "right",
+                }));
+                customFurnitureItems = d.customFurnitureItems || [];
+                globalDoorRadius = d.globalDoorRadius ?? 16;
+                hiddenWallKeys = Array.isArray(d.hiddenWallKeys)
+                  ? d.hiddenWallKeys
+                  : [];
+                openPassages = Array.isArray(d.openPassages)
+                  ? d.openPassages
+                  : [];
+
+                renderFurnitureLibrary();
+                redraw();
+                saveWithHistory();
+                showToast("导入成功");
+              } catch (ex) {
+                showToast("解析失败");
+              }
+            };
+            reader.readAsText(file);
+            e.target.value = "";
+          };
+
+          // ----- 墙体弹窗事件 -----
+          // ----- 窗户弹窗事件 -----
+          document.getElementById("windowPlacementBtn").onclick = () => {
+            windowPlacementMode = !windowPlacementMode;
+
+            if (windowPlacementMode) {
+              doorPlacementMode = false;
+              selectedFurnitureType = null;
+              document
+                .querySelectorAll(".furniture-item")
+                .forEach((el) => el.classList.remove("active"));
+            }
+
+            const btn = document.getElementById("windowPlacementBtn");
+            if (windowPlacementMode) {
+              btn.style.background = "#E8F5E9";
+              btn.style.borderColor = "#E8F5E9";
+              btn.textContent = "• 开窗 (激活)";
+              showToast("点击墙体添加窗户");
+            } else {
+              btn.style.background = "";
+              btn.style.borderColor = "";
+              btn.textContent = "• 生成窗户";
+            }
+          };
+
+          document.getElementById("windowModalSave").onclick = () => {
+            if (currentWindow) {
+              currentWindow.length = Math.max(
+                4,
+                parseFloat(
+                  document.getElementById("windowLengthInput").value,
+                ) || 8,
+              );
+              redraw();
+              saveWithHistory();
+            }
+            els.windowModal.style.display = "none";
+          };
+
+          document.getElementById("windowModalDelete").onclick = () => {
+            if (currentWindow) {
+              windows = windows.filter((w) => w.id !== currentWindow.id);
+              redraw();
+              saveWithHistory();
+            }
+            els.windowModal.style.display = "none";
+          };
+
+          document.getElementById("windowModalClose").onclick = () => {
+            els.windowModal.style.display = "none";
+          };
+          document.getElementById("wallModalDelete").onclick = () => {
+            if (currentWall) {
+              const wallKey = getWallPersistKey(currentWall);
+
+              if (!hiddenWallKeys.includes(wallKey)) {
+                hiddenWallKeys.push(wallKey);
+              }
+
+              const roomIds = currentWall.roomIds || [];
+              if (roomIds.length >= 2) {
+                const passageKey = getPassageKey(roomIds[0], roomIds[1]);
+                if (passageKey && !openPassages.includes(passageKey)) {
+                  openPassages.push(passageKey);
+                }
+              }
+
+              walls = walls.filter((w) => w.id !== currentWall.id);
+              windows = windows.filter((win) => win.wallId !== currentWall.id);
+
+              redraw();
+              saveWithHistory();
+            }
+
+            els.wallModal.style.display = "none";
+          };
+          document.getElementById("wallModalClose").onclick = () => {
+            els.wallModal.style.display = "none";
+          };
+
+          // ----- 门弹窗事件 -----
+          document.getElementById("doorModalSave").onclick = () => {
+            if (currentDoor) {
+              currentDoor.direction = document.getElementById(
+                "doorDirectionSelect",
+              ).value;
+
+              currentDoor.radius =
+                parseFloat(document.getElementById("doorRadiusInput").value) ||
+                globalDoorRadius;
+
+              redraw();
+              saveWithHistory();
+            }
+
+            els.doorModal.style.display = "none";
+          };
+
+          document.getElementById("doorModalDelete").onclick = () => {
+            if (currentDoor) {
+              doors = doors.filter((d) => d.id !== currentDoor.id);
+              redraw();
+              saveWithHistory();
+            }
+            els.doorModal.style.display = "none";
+          };
+
+          document.getElementById("doorModalClose").onclick = () => {
+            els.doorModal.style.display = "none";
+          };
+
+          // ----- 房间弹窗事件 -----
+          document.getElementById("roomModalSave").onclick = () => {
+            if (currentRoom) {
+              currentRoom.name =
+                document.getElementById("roomNameInput").value.trim() ||
+                currentRoom.name;
+
+              currentRoom.floorStyle =
+                document.getElementById("roomFloorStyleSelect").value ||
+                "woodSoft";
+
+              currentRoom.w = Math.max(
+                10,
+                parseFloat(document.getElementById("roomWInput").value) || 30,
+              );
+
+              currentRoom.h = Math.max(
+                10,
+                parseFloat(document.getElementById("roomHInput").value) || 30,
+              );
+
+              currentRoom.x = Math.max(
+                0,
+                Math.min(currentRoom.x, LOGIC_W - currentRoom.w),
+              );
+              currentRoom.y = Math.max(
+                0,
+                Math.min(currentRoom.y, LOGIC_H - currentRoom.h),
+              );
+
+              const snapped = snapRoom(currentRoom, rooms);
+              currentRoom.x = snapped.x;
+              currentRoom.y = snapped.y;
+
+              fixRoomOverlapIfNeeded(currentRoom);
+
+              syncLayout();
+              saveWithHistory();
+            }
+            els.roomModal.style.display = "none";
+          };
+
+          document.getElementById("roomModalDelete").onclick = () => {
+            if (currentRoom) {
+              rooms = rooms.filter((r) => r.id !== currentRoom.id);
+              furniture = furniture.filter((f) => f.roomId !== currentRoom.id);
+              doors = doors.filter(
+                (d) => d.roomA !== currentRoom.id && d.roomB !== currentRoom.id,
+              );
+
+              openPassages = openPassages.filter((key) => {
+                const parts = key.split("|");
+                return !parts.includes(currentRoom.id);
+              });
+
+              syncLayout();
+              saveWithHistory();
+            }
+            els.roomModal.style.display = "none";
+          };
+
+          document.getElementById("roomModalClose").onclick = () => {
+            els.roomModal.style.display = "none";
+          };
+
+          // ----- 家具编辑弹窗事件 -----
+          document.getElementById("modalSave").onclick = () => {
+            if (currentEditingFurniture) {
+              let w = +document.getElementById("modalWidth").value;
+              let h = +document.getElementById("modalHeight").value;
+
+              if (w >= 5) currentEditingFurniture.w = w;
+              if (h >= 5) currentEditingFurniture.h = h;
+
+              let room = getRoomById(currentEditingFurniture.roomId);
+              if (room) {
+                currentEditingFurniture.relX = Math.max(
+                  0,
+                  Math.min(
+                    currentEditingFurniture.relX,
+                    room.w - currentEditingFurniture.w,
+                  ),
+                );
+                currentEditingFurniture.relY = Math.max(
+                  0,
+                  Math.min(
+                    currentEditingFurniture.relY,
+                    room.h - currentEditingFurniture.h,
+                  ),
+                );
+              }
+
+              redraw();
+              saveWithHistory();
+            }
+            els.editModal.style.display = "none";
+            currentEditingFurniture = null;
+          };
+
+          document.getElementById("modalDelete").onclick = () => {
+            if (currentEditingFurniture) {
+              furniture = furniture.filter(
+                (f) => f.id !== currentEditingFurniture.id,
+              );
+            }
+            els.editModal.style.display = "none";
+            currentEditingFurniture = null;
+            redraw();
+            saveWithHistory();
+          };
+
+          document.getElementById("modalClose").onclick = () => {
+            els.editModal.style.display = "none";
+            currentEditingFurniture = null;
+          };
+
+          // ----- 自定义家具弹窗事件 -----
+          document.getElementById("addCustomFurnitureBtn").onclick = () => {
+            document.getElementById("newFurnitureName").value = "🪑 新家具";
+            document.getElementById("newFurnitureWidth").value = 30;
+            document.getElementById("newFurnitureHeight").value = 20;
+            showModal(els.createModal);
+          };
+
+          document.getElementById("createFurnitureSave").onclick = () => {
+            let name = document.getElementById("newFurnitureName").value.trim();
+            let w = +document.getElementById("newFurnitureWidth").value;
+            let h = +document.getElementById("newFurnitureHeight").value;
+            if (!name || w < 5 || h < 5) {
+              showToast("请输入合法内容");
+              return;
+            }
+            customFurnitureItems.push({
+              type: "c_" + Date.now(),
+              label: name.startsWith("•") ? name : "• " + name,
+              defaultW: w,
+              defaultH: h,
+            });
+            renderFurnitureLibrary();
+            saveWithHistory();
+            els.createModal.style.display = "none";
+          };
+
+          document.getElementById("createFurnitureCancel").onclick = () => {
+            els.createModal.style.display = "none";
+          };
+
+          // ----- 更新日志弹窗 -----
+          if (!sessionStorage.getItem("changelogShown")) {
+            showModal(els.changelogModal);
+            sessionStorage.setItem("changelogShown", "1");
+          }
+          document.getElementById("changelogCloseBtn").onclick = () => {
+            els.changelogModal.style.display = "none";
+          };
+
+          window.onresize = redraw;
+        };
+
+        // 初始化
+        (function init() {
+          try {
+            const raw = localStorage.getItem("myFloorplanData");
+            const d = raw ? JSON.parse(raw) : null;
+
+            if (d) {
+              rooms = Array.isArray(d.rooms)
+                ? d.rooms
+                : deepClone(DEFAULT_ROOMS);
+              doors = Array.isArray(d.doors) ? d.doors : [];
+              walls = Array.isArray(d.walls) ? d.walls : [];
+              windows = Array.isArray(d.windows) ? d.windows : [];
+              furniture = Array.isArray(d.furniture) ? d.furniture : [];
+              customFurnitureItems = Array.isArray(d.customFurnitureItems)
+                ? d.customFurnitureItems
+                : [];
+              hiddenWallKeys = Array.isArray(d.hiddenWallKeys)
+                ? d.hiddenWallKeys
+                : [];
+              openPassages = Array.isArray(d.openPassages)
+                ? d.openPassages
+                : [];
+              globalDoorRadius = d.globalDoorRadius ?? 16;
+            }
+          } catch (e) {
+            rooms = deepClone(DEFAULT_ROOMS);
+            doors = [];
+            walls = [];
+            windows = [];
+            furniture = [];
+            customFurnitureItems = [];
+            globalDoorRadius = 16;
+          }
+
+          rooms = rooms.map((r) => ({
+            ...r,
+            id: r.id || generateId(),
+          }));
+
+          renderFurnitureLibrary();
+          renderRoomFloorOptions();
+          bindEvents();
+          redraw();
+
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => {
+              redraw();
+              pushHistory();
+            });
+          } else {
+            setTimeout(() => {
+              redraw();
+              pushHistory();
+            }, 100);
+          }
+        })();
+      })();
+    </script>
+  </body>
+</html>
